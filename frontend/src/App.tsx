@@ -4,10 +4,12 @@ import {
   createRoute,
   createRootRoute,
   RouterProvider,
+  redirect,
 } from '@tanstack/react-router';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ThemeProvider } from 'next-themes';
 import Layout from './components/Layout';
 import Home from './pages/Home';
-import Genres from './pages/Genres';
 import Browse from './pages/Browse';
 import BookDetail from './pages/BookDetail';
 import Reader from './pages/Reader';
@@ -17,54 +19,51 @@ import AdminDashboard from './pages/AdminDashboard';
 import AuthorProfile from './pages/AuthorProfile';
 import About from './pages/About';
 
+// v2
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 2,
+      retry: 1,
+    },
+  },
+});
+
 // Root route with layout
 const rootRoute = createRootRoute({
   component: Layout,
 });
 
-// Page routes
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: Home,
 });
 
-const genresRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/genres',
-  component: Genres,
-});
-
 const browseRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/browse',
-  component: Browse,
   validateSearch: (search: Record<string, unknown>) => ({
     genre: typeof search.genre === 'string' ? search.genre : undefined,
   }),
+  component: Browse,
 });
 
 const bookDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/book/$id',
+  path: '/book/$bookId',
   component: BookDetail,
 });
 
 const readerRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/reader/$id',
+  path: '/reader/$bookId',
   component: Reader,
 });
 
 const uploadRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/upload',
-  component: Upload,
-});
-
-const uploadEditRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/upload/$bookId',
   component: Upload,
 });
 
@@ -80,9 +79,9 @@ const adminRoute = createRoute({
   component: AdminDashboard,
 });
 
-const authorRoute = createRoute({
+const authorProfileRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/author/$principal',
+  path: '/author/$authorName',
   component: AuthorProfile,
 });
 
@@ -94,15 +93,13 @@ const aboutRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
-  genresRoute,
   browseRoute,
   bookDetailRoute,
   readerRoute,
   uploadRoute,
-  uploadEditRoute,
   dashboardRoute,
   adminRoute,
-  authorRoute,
+  authorProfileRoute,
   aboutRoute,
 ]);
 
@@ -115,5 +112,11 @@ declare module '@tanstack/react-router' {
 }
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </ThemeProvider>
+  );
 }

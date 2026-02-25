@@ -1,56 +1,65 @@
-import React from 'react';
-import { type AdminStats } from '../backend';
-import { Users, BookOpen, CheckCircle, Clock } from 'lucide-react';
+import { useGetAdminStats } from '../hooks/useQueries';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Users, BookOpen, CheckCircle, Clock } from 'lucide-react';
 
-interface StatsCardsProps {
-  stats: AdminStats;
-}
+export default function StatsCards() {
+  const { data: stats, isLoading } = useGetAdminStats();
 
-export default function StatsCards({ stats }: StatsCardsProps) {
-  const items = [
+  const cards = [
     {
       label: 'Total Users',
-      value: stats.totalUsers.toString(),
+      value: stats?.totalUsers,
       icon: Users,
       color: 'text-blue-500',
       bg: 'bg-blue-500/10',
     },
     {
       label: 'Total Books',
-      value: stats.totalBooks.toString(),
+      value: stats?.totalBooks,
       icon: BookOpen,
-      color: 'text-gold',
-      bg: 'bg-gold/10',
+      color: 'text-primary',
+      bg: 'bg-primary/10',
     },
     {
       label: 'Approved',
-      value: stats.totalApprovedBooks.toString(),
+      value: stats?.totalApprovedBooks,
       icon: CheckCircle,
-      color: 'text-emerald-500',
-      bg: 'bg-emerald-500/10',
+      color: 'text-green-500',
+      bg: 'bg-green-500/10',
     },
     {
-      label: 'Pending Review',
-      value: stats.totalPendingBooks.toString(),
+      label: 'Pending',
+      value: stats?.totalPendingBooks,
       icon: Clock,
-      color: 'text-amber-500',
-      bg: 'bg-amber-500/10',
+      color: 'text-yellow-500',
+      bg: 'bg-yellow-500/10',
     },
   ];
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {items.map(item => (
-        <Card key={item.label} className="border-border/50">
-          <CardContent className="p-5">
+      {cards.map((card) => (
+        <Card key={card.label} className="border-border bg-card">
+          <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-lg ${item.bg} flex items-center justify-center shrink-0`}>
-                <item.icon className={`w-5 h-5 ${item.color}`} />
+              <div className={`w-10 h-10 rounded-lg ${card.bg} flex items-center justify-center shrink-0`}>
+                <card.icon className={`w-5 h-5 ${card.color}`} />
               </div>
               <div>
-                <p className="text-2xl font-serif font-bold text-foreground">{item.value}</p>
-                <p className="text-xs text-muted-foreground font-sans">{item.label}</p>
+                {isLoading ? (
+                  <>
+                    <Skeleton className="h-6 w-12 mb-1" />
+                    <Skeleton className="h-3 w-16" />
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xl font-bold text-foreground">
+                      {card.value?.toString() ?? '0'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{card.label}</p>
+                  </>
+                )}
               </div>
             </div>
           </CardContent>

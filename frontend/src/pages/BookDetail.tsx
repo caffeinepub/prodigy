@@ -1,61 +1,97 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, Link } from '@tanstack/react-router';
-import { useGetBookById, useGetBookmarks, useAddBookmark, useRemoveBookmark, useIncrementBookView } from '../hooks/useQueries';
+import {
+  useGetBookById,
+  useGetBookmarks,
+  useAddBookmark,
+  useRemoveBookmark,
+  useIncrementBookView,
+} from '../hooks/useQueries';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
+import { BookOpen, Bookmark, BookmarkCheck, ArrowLeft, Eye, Tag, Calendar, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BookOpen, Bookmark, BookmarkCheck, Eye, Calendar, User, ArrowLeft, Loader2 } from 'lucide-react';
-import { formatDate } from '../lib/utils';
-import { toast } from 'sonner';
+import SharePopover from '../components/SharePopover';
+
+function CoverImage({ book }: { book: any }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (book?.cover) {
+      book.cover.getBytes().then((bytes: Uint8Array<ArrayBuffer>) => {
+        const blob = new Blob([bytes as unknown as BlobPart], { type: 'image/jpeg' });
+        const objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+        return () => URL.revokeObjectURL(objectUrl);
+      });
+    }
+  }, [book?.cover]);
+
+  if (!url) {
+    return (
+      <div className="w-full h-full bg-muted flex items-center justify-center rounded-xl">
+        <BookOpen size={48} className="text-muted-foreground/30" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={url}
+      alt={book.title}
+      className="w-full h-full object-cover rounded-xl shadow-lg"
+    />
+  );
+}
 
 export default function BookDetail() {
-  const { id } = useParams({ from: '/book/$id' });
-  const bookId = BigInt(id);
+  const { bookId } = useParams({ from: '/book/$bookId' });
+  const bookIdBigInt = BigInt(bookId);
 
-  const { data: book, isLoading } = useGetBookById(bookId);
-  const { data: bookmarks } = useGetBookmarks();
-  const { identity } = useInternetIdentity();
+  const { data: book, isLoading } = useGetBookById(bookIdBigInt);
+  const { data: bookmarks = [] } = useGetBookmarks();
   const addBookmark = useAddBookmark();
   const removeBookmark = useRemoveBookmark();
   const incrementView = useIncrementBookView();
+  const { identity } = useInternetIdentity();
 
-  const isBookmarked = bookmarks?.some(b => b.bookId === bookId) ?? false;
+  const isBookmarked = bookmarks.some((b) => b.bookId === bookIdBigInt);
+  const isAuthenticated = !!identity;
 
   useEffect(() => {
-    if (book && identity) {
-      incrementView.mutate(bookId);
+    if (book && isAuthenticated) {
+      incrementView.mutate(bookIdBigInt);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [book?.id.toString()]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [book?.id?.toString()]);
 
-  const handleBookmark = async () => {
-    if (!identity) {
-      toast.error('Please log in to bookmark books');
-      return;
+  const handleBookmark = () => {
+    if (!isAuthenticated) return;
+    if (isBookmarked) {
+      removeBookmark.mutate(bookIdBigInt);
+    } else {
+      addBookmark.mutate(bookIdBigInt);
     }
-    try {
-      if (isBookmarked) {
-        await removeBookmark.mutateAsync(bookId);
-        toast.success('Bookmark removed');
-      } else {
-        await addBookmark.mutateAsync(bookId);
-        toast.success('Book bookmarked!');
-      }
-    } catch {
-      toast.error('Failed to update bookmark');
-    }
+  };
+
+  const formatDate = (timestamp: bigint) => {
+    return new Date(Number(timestamp) / 1_000_000).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   };
 
   if (isLoading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12">
-        <div className="flex flex-col md:flex-row gap-8">
-          <Skeleton className="w-full md:w-64 aspect-[2/3] rounded-xl shrink-0" />
-          <div className="flex-1 space-y-4">
-            <Skeleton className="h-8 w-3/4" />
-            <Skeleton className="h-5 w-1/2" />
-            <Skeleton className="h-4 w-1/4" />
+      <div className="max-w-5xl mx-auto px-4 py-10">
+        <Skeleton className="h-8 w-32 mb-8" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <Skeleton className="aspect-[2/3] rounded-xl" />
+          <div className="md:col-span-2 space-y-4">
+            <Skeleton className="h-10 w-3/4" />
+            <Skeleton className="h-6 w-1/2" />
             <Skeleton className="h-32 w-full" />
           </div>
         </div>
@@ -65,123 +101,135 @@ export default function BookDetail() {
 
   if (!book) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center px-4">
-        <div className="text-center">
-          <BookOpen className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
-          <h2 className="font-serif text-2xl font-semibold mb-2">Book Not Found</h2>
-          <p className="text-muted-foreground font-sans mb-6">This book doesn't exist or has been removed.</p>
-          <Button asChild variant="outline">
-            <Link to="/browse" search={{ genre: undefined }}>Browse Library</Link>
-          </Button>
-        </div>
+      <div className="max-w-5xl mx-auto px-4 py-20 text-center">
+        <BookOpen size={64} className="mx-auto text-muted-foreground/30 mb-4" />
+        <h2 className="text-2xl font-bold text-foreground mb-2">Book not found</h2>
+        <p className="text-muted-foreground mb-6">
+          This book may have been removed or doesn't exist.
+        </p>
+        <Link to="/browse" search={{ genre: undefined }}>
+          <Button>Browse Books</Button>
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Back button */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6">
-        <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground -ml-2">
-          <Link to="/browse" search={{ genre: undefined }}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Library
-          </Link>
-        </Button>
-      </div>
+    <div className="min-h-screen bg-background">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Back */}
+        <Link
+          to="/browse"
+          search={{ genre: undefined }}
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8"
+        >
+          <ArrowLeft size={16} />
+          Back to Browse
+        </Link>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex flex-col md:flex-row gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
           {/* Cover */}
-          <div className="shrink-0 w-full md:w-56 lg:w-64">
-            <div className="aspect-[2/3] rounded-xl overflow-hidden bg-muted shadow-xl border border-border/50">
-              {book.coverUrl ? (
-                <img
-                  src={book.coverUrl}
-                  alt={book.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center gap-3">
-                  <BookOpen className="w-16 h-16 text-gold/40" />
-                  <span className="text-xs text-muted-foreground font-sans">No Cover</span>
-                </div>
-              )}
+          <div className="md:col-span-1">
+            <div className="aspect-[2/3] w-full max-w-xs mx-auto md:max-w-none">
+              <CoverImage book={book} />
+            </div>
+
+            {/* Stats */}
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="bg-card border border-border rounded-lg p-3 text-center">
+                <Eye size={16} className="mx-auto text-primary mb-1" />
+                <p className="text-lg font-bold text-foreground">{Number(book.viewCount).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Views</p>
+              </div>
+              <div className="bg-card border border-border rounded-lg p-3 text-center">
+                <Bookmark size={16} className="mx-auto text-accent-foreground mb-1" />
+                <p className="text-lg font-bold text-foreground">—</p>
+                <p className="text-xs text-muted-foreground">Bookmarks</p>
+              </div>
             </div>
           </div>
 
           {/* Details */}
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <Badge variant="outline" className="border-gold/40 text-gold text-xs">
-                {book.genre}
-              </Badge>
-              <span className="flex items-center gap-1 text-xs text-muted-foreground font-sans">
-                <Eye className="w-3 h-3" />
-                {book.viewCount.toString()} views
-              </span>
+          <div className="md:col-span-2 space-y-6">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground font-cinzel leading-tight">
+                {book.title}
+              </h1>
+              <div className="flex items-center gap-2 mt-2">
+                <User size={14} className="text-muted-foreground" />
+                <p className="text-muted-foreground">
+                  by <span className="text-foreground font-medium">{book.author}</span>
+                </p>
+              </div>
             </div>
 
-            <h1 className="font-serif text-3xl sm:text-4xl font-bold text-foreground mb-3 leading-tight">
-              {book.title}
-            </h1>
+            {/* Genres */}
+            {book.genres.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <Tag size={14} className="text-muted-foreground" />
+                {book.genres.map((genre) => (
+                  <Badge key={genre} variant="secondary" className="text-xs">
+                    {genre}
+                  </Badge>
+                ))}
+              </div>
+            )}
 
-            <div className="flex flex-wrap items-center gap-4 mb-6 text-sm text-muted-foreground font-sans">
-              <Link
-                to="/author/$principal"
-                params={{ principal: book.uploadedBy.toString() }}
-                className="flex items-center gap-1.5 hover:text-gold transition-colors"
-              >
-                <User className="w-4 h-4" />
-                {book.author}
-              </Link>
-              <span className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4" />
-                {formatDate(book.uploadDate)}
-              </span>
+            {/* Upload date */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar size={14} />
+              <span>Published {formatDate(book.uploadDate)}</span>
             </div>
 
-            <p className="text-foreground/80 font-sans leading-relaxed mb-8 text-base">
-              {book.description}
-            </p>
+            {/* Description */}
+            <div>
+              <h2 className="text-sm font-semibold text-foreground mb-2 uppercase tracking-wide">
+                About this book
+              </h2>
+              <p className="text-muted-foreground leading-relaxed">{book.description}</p>
+            </div>
 
             {/* Actions */}
-            <div className="flex flex-wrap gap-3">
-              {book.pdfUrl && (
-                <Button asChild size="lg" className="bg-gold text-navy-deep hover:bg-gold-light font-semibold">
-                  <Link to="/reader/$id" params={{ id: book.id.toString() }}>
-                    <BookOpen className="w-5 h-5 mr-2" />
+            <div className="flex flex-wrap gap-3 pt-2">
+              {book.pdf && isAuthenticated && (
+                <Link to="/reader/$bookId" params={{ bookId: bookId }}>
+                  <Button className="gap-2">
+                    <BookOpen size={16} />
                     Read Now
-                  </Link>
-                </Button>
+                  </Button>
+                </Link>
               )}
 
-              {identity && (
+              {isAuthenticated && (
                 <Button
-                  size="lg"
                   variant="outline"
                   onClick={handleBookmark}
                   disabled={addBookmark.isPending || removeBookmark.isPending}
-                  className={isBookmarked
-                    ? 'border-gold text-gold bg-gold/10'
-                    : 'border-border hover:border-gold/50 hover:text-gold'
-                  }
+                  className={`gap-2 ${isBookmarked ? 'border-accent text-accent-foreground' : ''}`}
                 >
-                  {addBookmark.isPending || removeBookmark.isPending ? (
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  ) : isBookmarked ? (
-                    <BookmarkCheck className="w-5 h-5 mr-2" />
+                  {isBookmarked ? (
+                    <>
+                      <BookmarkCheck size={16} className="text-accent-foreground" />
+                      Bookmarked
+                    </>
                   ) : (
-                    <Bookmark className="w-5 h-5 mr-2" />
+                    <>
+                      <Bookmark size={16} />
+                      Bookmark
+                    </>
                   )}
-                  {isBookmarked ? 'Bookmarked' : 'Bookmark'}
                 </Button>
               )}
+
+              <SharePopover bookId={book.id} bookTitle={book.title} />
             </div>
 
-            {!book.pdfUrl && (
-              <p className="mt-4 text-sm text-muted-foreground font-sans italic">
-                No PDF available for this book.
+            {!isAuthenticated && (
+              <p className="text-sm text-muted-foreground">
+                <Link to="/" className="text-primary underline">
+                  Log in
+                </Link>{' '}
+                to read and bookmark this book.
               </p>
             )}
           </div>

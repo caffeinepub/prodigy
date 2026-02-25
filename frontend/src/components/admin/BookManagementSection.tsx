@@ -1,26 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useActor } from '../../hooks/useActor';
 import {
-  BookOpen, Search, Trash2, CheckCircle, XCircle, Star, StarOff,
-  Edit, Filter, ChevronLeft, ChevronRight, Loader2
+  BookOpen, Search, CheckCircle, XCircle,
+  Edit, Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
@@ -39,9 +28,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import type { BookView } from '../../backend';
-import { BookStatus } from '../../backend';
+import { BookStatus, ExternalBlob } from '../../backend';
 
-const GENRES = ['Fiction', 'Non-Fiction', 'Science', 'Technology', 'History', 'Philosophy', 'Biography', 'Self-Help', 'Other'];
+const GENRES = ['Fiction', 'Non-Fiction', 'Science', 'Technology', 'History', 'Philosophy', 'Biography', 'Self-Help', 'Mystery', 'Romance', 'Fantasy', 'Other'];
 const ITEMS_PER_PAGE = 10;
 
 function StatusBadge({ status }: { status: BookStatus }) {
@@ -50,13 +39,38 @@ function StatusBadge({ status }: { status: BookStatus }) {
   return <Badge className="bg-red-500/15 text-red-400 border-red-500/30 text-xs">Rejected</Badge>;
 }
 
+function BookCoverCell({ book }: { book: BookView }) {
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    if (book.cover) {
+      book.cover.getBytes().then((bytes) => {
+        const blob = new Blob([bytes], { type: 'image/jpeg' });
+        objectUrl = URL.createObjectURL(blob);
+        setCoverUrl(objectUrl);
+      }).catch(() => setCoverUrl(null));
+    }
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [book.cover]);
+
+  if (coverUrl) {
+    return <img src={coverUrl} alt={book.title} className="h-10 w-8 object-cover rounded shrink-0" />;
+  }
+  return (
+    <div className="h-10 w-8 bg-admin-gold/10 rounded flex items-center justify-center shrink-0">
+      <BookOpen className="h-4 w-4 text-admin-gold" />
+    </div>
+  );
+}
+
 interface EditBookForm {
   title: string;
   author: string;
   description: string;
-  genre: string;
-  coverUrl: string;
-  pdfUrl: string;
+  genres: string[];
 }
 
 export default function BookManagementSection() {
@@ -67,7 +81,12 @@ export default function BookManagementSection() {
   const [genreFilter, setGenreFilter] = useState<string>('all');
   const [page, setPage] = useState(0);
   const [editBook, setEditBook] = useState<BookView | null>(null);
-  const [editForm, setEditForm] = useState<EditBookForm>({ title: '', author: '', description: '', genre: '', coverUrl: '', pdfUrl: '' });
+  const [editForm, setEditForm] = useState<EditBookForm>({
+    title: '',
+    author: '',
+    description: '',
+    genres: [],
+  });
 
   const { data: approvedBooks, isLoading: approvedLoading } = useQuery<BookView[]>({
     queryKey: ['approvedBooks'],
@@ -119,7 +138,16 @@ export default function BookManagementSection() {
   const editMutation = useMutation({
     mutationFn: async ({ bookId, form }: { bookId: bigint; form: EditBookForm }) => {
       if (!actor) throw new Error('Actor not available');
-      await actor.editBook(bookId, form.title, form.author, form.description, form.genre, form.coverUrl, form.pdfUrl);
+      // Keep existing cover and pdf blobs (pass null to leave unchanged)
+      await actor.editBook(
+        bookId,
+        form.title,
+        form.author,
+        form.description,
+        form.genres,
+        null,
+        null
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['approvedBooks'] });
@@ -136,9 +164,17 @@ export default function BookManagementSection() {
       title: book.title,
       author: book.author,
       description: book.description,
-      genre: book.genre,
-      coverUrl: book.coverUrl,
-      pdfUrl: book.pdfUrl,
+      genres: book.genres,
+    });
+  };
+
+  const toggleGenre = (genre: string) => {
+    setEditForm((prev) => {
+      if (prev.genres.includes(genre)) {
+        return { ...prev, genres: prev.genres.filter((g) => g !== genre) };
+      }
+      if (prev.genres.length >= 3) return prev;
+      return { ...prev, genres: [...prev.genres, genre] };
     });
   };
 
@@ -146,14 +182,12 @@ export default function BookManagementSection() {
     const matchSearch = b.title.toLowerCase().includes(search.toLowerCase()) ||
       b.author.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || b.status === statusFilter;
-    const matchGenre = genreFilter === 'all' || b.genre === genreFilter;
+    const matchGenre = genreFilter === 'all' || b.genres.includes(genreFilter);
     return matchSearch && matchStatus && matchGenre;
   });
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated = filtered.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE);
-
-  const formatDate = (time: bigint) => new Date(Number(time) / 1_000_000).toLocaleDateString();
 
   return (
     <div className="space-y-6">
@@ -221,7 +255,7 @@ export default function BookManagementSection() {
                   <thead>
                     <tr className="border-b border-admin-border">
                       <th className="text-left py-3 px-2 text-admin-muted font-medium text-xs uppercase tracking-wider">Book</th>
-                      <th className="text-left py-3 px-2 text-admin-muted font-medium text-xs uppercase tracking-wider hidden sm:table-cell">Genre</th>
+                      <th className="text-left py-3 px-2 text-admin-muted font-medium text-xs uppercase tracking-wider hidden sm:table-cell">Genres</th>
                       <th className="text-left py-3 px-2 text-admin-muted font-medium text-xs uppercase tracking-wider">Status</th>
                       <th className="text-left py-3 px-2 text-admin-muted font-medium text-xs uppercase tracking-wider hidden md:table-cell">Views</th>
                       <th className="text-right py-3 px-2 text-admin-muted font-medium text-xs uppercase tracking-wider">Actions</th>
@@ -232,13 +266,7 @@ export default function BookManagementSection() {
                       <tr key={Number(book.id)} className="hover:bg-admin-border/20 transition-colors">
                         <td className="py-3 px-2">
                           <div className="flex items-center gap-2">
-                            {book.coverUrl && book.coverUrl.startsWith('data:') ? (
-                              <img src={book.coverUrl} alt={book.title} className="h-10 w-8 object-cover rounded shrink-0" />
-                            ) : (
-                              <div className="h-10 w-8 bg-admin-gold/10 rounded flex items-center justify-center shrink-0">
-                                <BookOpen className="h-4 w-4 text-admin-gold" />
-                              </div>
-                            )}
+                            <BookCoverCell book={book} />
                             <div className="min-w-0">
                               <p className="text-admin-text font-medium text-sm truncate max-w-[140px]">{book.title}</p>
                               <p className="text-admin-muted text-xs truncate">{book.author}</p>
@@ -246,7 +274,9 @@ export default function BookManagementSection() {
                           </div>
                         </td>
                         <td className="py-3 px-2 hidden sm:table-cell">
-                          <span className="text-admin-muted text-xs">{book.genre}</span>
+                          <span className="text-admin-muted text-xs">
+                            {book.genres.length > 0 ? book.genres.join(', ') : '—'}
+                          </span>
                         </td>
                         <td className="py-3 px-2">
                           <StatusBadge status={book.status} />
@@ -308,18 +338,18 @@ export default function BookManagementSection() {
                       size="sm"
                       onClick={() => setPage(p => Math.max(0, p - 1))}
                       disabled={page === 0}
-                      className="border-admin-border text-admin-text hover:bg-admin-border h-8 w-8 p-0"
+                      className="h-7 text-xs bg-admin-bg border-admin-border text-admin-text hover:bg-admin-border"
                     >
-                      <ChevronLeft className="h-4 w-4" />
+                      Previous
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                       disabled={page >= totalPages - 1}
-                      className="border-admin-border text-admin-text hover:bg-admin-border h-8 w-8 p-0"
+                      className="h-7 text-xs bg-admin-bg border-admin-border text-admin-text hover:bg-admin-border"
                     >
-                      <ChevronRight className="h-4 w-4" />
+                      Next
                     </Button>
                   </div>
                 </div>
@@ -336,24 +366,24 @@ export default function BookManagementSection() {
             <DialogTitle className="text-admin-gold">Edit Book</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label className="text-admin-muted text-xs">Title</Label>
+            <div className="space-y-1">
+              <Label className="text-admin-text text-sm">Title</Label>
               <Input
                 value={editForm.title}
                 onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
                 className="bg-admin-bg border-admin-border text-admin-text"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-admin-muted text-xs">Author</Label>
+            <div className="space-y-1">
+              <Label className="text-admin-text text-sm">Author</Label>
               <Input
                 value={editForm.author}
                 onChange={e => setEditForm(f => ({ ...f, author: e.target.value }))}
                 className="bg-admin-bg border-admin-border text-admin-text"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-admin-muted text-xs">Description</Label>
+            <div className="space-y-1">
+              <Label className="text-admin-text text-sm">Description</Label>
               <Textarea
                 value={editForm.description}
                 onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
@@ -361,35 +391,52 @@ export default function BookManagementSection() {
                 rows={3}
               />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-admin-muted text-xs">Genre</Label>
-              <Select value={editForm.genre} onValueChange={v => setEditForm(f => ({ ...f, genre: v }))}>
-                <SelectTrigger className="bg-admin-bg border-admin-border text-admin-text">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-admin-card border-admin-border">
-                  {GENRES.map(g => (
-                    <SelectItem key={g} value={g} className="text-admin-text">{g}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-admin-text text-sm">Genres</Label>
+                <span className="text-xs text-admin-muted">{editForm.genres.length}/3 selected</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {GENRES.map((genre) => {
+                  const isSelected = editForm.genres.includes(genre);
+                  const isDisabled = !isSelected && editForm.genres.length >= 3;
+                  return (
+                    <button
+                      key={genre}
+                      type="button"
+                      onClick={() => toggleGenre(genre)}
+                      disabled={isDisabled}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
+                        isSelected
+                          ? 'bg-admin-gold/20 text-admin-gold border-admin-gold/40'
+                          : isDisabled
+                          ? 'bg-admin-bg/30 text-admin-muted/40 border-admin-border/20 cursor-not-allowed'
+                          : 'bg-admin-bg text-admin-muted border-admin-border hover:border-admin-gold/40 hover:text-admin-text'
+                      }`}
+                    >
+                      {genre}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setEditBook(null)}
-              className="border-admin-border text-admin-muted hover:bg-admin-border"
+              className="bg-admin-bg border-admin-border text-admin-text hover:bg-admin-border"
             >
               Cancel
             </Button>
             <Button
               onClick={() => editBook && editMutation.mutate({ bookId: editBook.id, form: editForm })}
               disabled={editMutation.isPending}
-              className="bg-admin-gold text-admin-sidebar hover:bg-admin-gold/90"
+              className="bg-admin-gold text-admin-bg hover:bg-admin-gold/90"
             >
-              {editMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Save Changes
+              {editMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
+              ) : 'Save Changes'}
             </Button>
           </DialogFooter>
         </DialogContent>

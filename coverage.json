@@ -1,105 +1,24 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-25T12:33:27.896Z",
+  "generatedAt": "2026-02-25T19:36:02.231Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 8,
-    "implemented": 5,
+    "total": 1,
+    "implemented": 1,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "Extend the backend Motoko actor to support admin-only operations gated to principal ID `zhpm4-xby3w-hy7nv-ziwxz-heeqw-f2qf4-p2o5a-qradb`: get all users with activity info, delete a user, ban/unban a user, suspend/unsuspend a user; delete any book regardless of owner; approve or reject a book (set approval status); feature/unfeature a book on the homepage; get all uploaded PDFs with metadata; delete or replace a PDF; get storage usage stats and enforce a configurable max upload size; get and set platform settings (site name, logo URL, announcement banner text, maintenance mode toggle); force-logout a user (invalidate session marker); get analytics data (total users, total books, total uploads, most-viewed books, most-bookmarked books, new users and books over time). All admin endpoints must verify the caller's principal matches the hardcoded admin principal and trap/return an error otherwise.",
-        "status": "unknown",
-        "plannedFiles": [],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-2",
-        "summary": "Build a complete Admin Dashboard page at the `/admin` route, protected by the existing `AdminGuard` component. The dashboard must contain clearly separated sections reachable via a sidebar or tab navigation: Overview/Analytics, User Management, Book Management, Storage Control, Platform Settings, and Security. The UI must be clean, modern, and fully mobile-responsive.",
+        "summary": "Redeploy the current application to the Internet Computer network without any code changes.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/pages/AdminDashboard.tsx",
-          "frontend/src/components/admin/AdminSidebar.tsx",
           "frontend/src/App.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/pages/AdminDashboard.tsx",
-          "frontend/src/components/admin/AdminSidebar.tsx"
-        ]
-      },
-      {
-        "id": "REQ-3",
-        "summary": "Implement the Analytics/Overview section of the Admin Dashboard. Display stat cards for: total registered users, total books, total uploads, total approved books, total pending books. Display a list of the most-viewed books and most-bookmarked books. Display most-active users by upload count.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/components/admin/OverviewSection.tsx",
-          "frontend/src/hooks/useQueries.ts"
-        ],
-        "matchedFiles": [
-          "frontend/src/components/admin/OverviewSection.tsx"
-        ]
-      },
-      {
-        "id": "REQ-4",
-        "summary": "Implement the User Management section of the Admin Dashboard. Show a paginated or scrollable table of all registered users with columns: display name, principal ID, role, status (active/banned/suspended), books uploaded, join date. Provide action buttons per row to: delete user, ban/unban user, suspend/unsuspend user. Confirm destructive actions with a confirmation dialog before calling the backend.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/components/admin/UserManagementSection.tsx",
-          "frontend/src/hooks/useQueries.ts"
-        ],
-        "matchedFiles": [
-          "frontend/src/components/admin/UserManagementSection.tsx"
-        ]
-      },
-      {
-        "id": "REQ-5",
-        "summary": "Implement the Book Management section of the Admin Dashboard. Show a searchable, filterable list of all books (including pending and approved) with cover thumbnail, title, author, genre, status (approved/pending/rejected), featured flag, and view count. Provide per-book actions: edit (title, description, genre, cover URL), delete, approve, reject, feature/unfeature. The admin upload form should reuse or mirror the existing Upload page form.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/components/admin/BookManagementSection.tsx",
-          "frontend/src/hooks/useQueries.ts"
-        ],
-        "matchedFiles": [
-          "frontend/src/components/admin/BookManagementSection.tsx"
-        ]
-      },
-      {
-        "id": "REQ-6",
-        "summary": "Implement the Storage Control section of the Admin Dashboard. Display aggregate storage usage (total bytes used across all PDFs) and the configured maximum upload size. Show a list of all uploaded PDF entries with file name, associated book title, uploader, file size, and upload date. Provide a delete button per PDF entry and a global control to update the maximum allowed upload size.",
-        "status": "missing",
-        "plannedFiles": [
-          "frontend/src/components/admin/StorageControlSection.tsx",
-          "frontend/src/hooks/useQueries.ts"
-        ],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-7",
-        "summary": "Implement the Platform Settings section of the Admin Dashboard. Provide an editable form with fields for: site name, logo URL, homepage announcement banner text (with an enable/disable toggle), and a maintenance mode toggle switch. Saving the form calls the backend setPlatformSettings endpoint. When maintenance mode is enabled, non-admin users visiting the frontend should see a maintenance page instead of the normal app.",
-        "status": "missing",
-        "plannedFiles": [
-          "frontend/src/components/admin/PlatformSettingsSection.tsx",
-          "frontend/src/hooks/useQueries.ts",
-          "frontend/src/components/MaintenanceMode.tsx",
-          "frontend/src/components/Layout.tsx",
-          "frontend/src/pages/Home.tsx"
-        ],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-8",
-        "summary": "Implement the Security section of the Admin Dashboard. Display a list of currently banned and suspended users with their status and the ability to unban/unsuspend from this view. Add a searchable account-blocking form where the admin can enter a principal ID to block (ban) that account. Display a platform activity log showing recent events: new user registrations, book uploads, and books removed — with timestamps and actor principal.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/components/admin/SecuritySection.tsx",
-          "frontend/src/hooks/useQueries.ts"
-        ],
-        "matchedFiles": [
-          "frontend/src/components/admin/SecuritySection.tsx"
+          "frontend/src/App.tsx"
         ]
       }
     ]
@@ -109,15 +28,7 @@
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/components/AdminGuard.tsx",
-    "frontend/src/components/admin/AdminSidebar.tsx",
-    "frontend/src/components/admin/BookManagementSection.tsx",
-    "frontend/src/components/admin/OverviewSection.tsx",
-    "frontend/src/components/admin/SecuritySection.tsx",
-    "frontend/src/components/admin/UserManagementSection.tsx",
-    "frontend/src/index.css",
-    "frontend/src/pages/AdminDashboard.tsx",
-    "frontend/tailwind.config.js",
+    "frontend/src/App.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

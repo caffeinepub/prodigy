@@ -1,7 +1,8 @@
 import React from 'react';
 import { BarChart3, Users, BookOpen, Shield, Crown } from 'lucide-react';
-import type { AdminSection } from '../../pages/AdminDashboard';
 import { cn } from '@/lib/utils';
+
+export type AdminSection = 'overview' | 'users' | 'books' | 'security';
 
 interface AdminSidebarProps {
   activeSection: AdminSection;

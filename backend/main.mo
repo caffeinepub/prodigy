@@ -4,10 +4,13 @@ import Text "mo:core/Text";
 import Order "mo:core/Order";
 import Map "mo:core/Map";
 import List "mo:core/List";
+import Iter "mo:core/Iter";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
+import MixinStorage "blob-storage/Mixin";
+import Storage "blob-storage/Storage";
 
 actor {
   type Book = {
@@ -15,9 +18,9 @@ actor {
     title : Text;
     author : Text;
     description : Text;
-    genre : Text;
-    coverUrl : Text;
-    pdfUrl : Text;
+    genres : [Text];
+    cover : ?Storage.ExternalBlob;
+    pdf : ?Storage.ExternalBlob;
     uploadedBy : Principal;
     uploadDate : Time.Time;
     var status : BookStatus;
@@ -39,9 +42,9 @@ actor {
     title : Text;
     author : Text;
     description : Text;
-    genre : Text;
-    coverUrl : Text;
-    pdfUrl : Text;
+    genres : [Text];
+    cover : ?Storage.ExternalBlob;
+    pdf : ?Storage.ExternalBlob;
     uploadedBy : Principal;
     uploadDate : Time.Time;
     status : BookStatus;
@@ -56,9 +59,9 @@ actor {
         title = book.title;
         author = book.author;
         description = book.description;
-        genre = book.genre;
-        coverUrl = book.coverUrl;
-        pdfUrl = book.pdfUrl;
+        genres = book.genres;
+        cover = book.cover;
+        pdf = book.pdf;
         uploadedBy = book.uploadedBy;
         uploadDate = book.uploadDate;
         status = book.status;
@@ -105,15 +108,37 @@ actor {
     totalPendingBooks : Nat;
   };
 
+  type Notification = {
+    id : Nat;
+    title : Text;
+    message : Text;
+    timestamp : Time.Time;
+    isRead : Bool;
+    authorPrincipal : ?Principal;
+    icon : ?Storage.ExternalBlob;
+  };
+
+  type NotificationType = {
+    #viewMilestone;
+    #likeMilestone;
+    #newAuthor;
+    #other;
+  };
+
+  let iconMap = Map.empty<Text, Storage.ExternalBlob>(); // Store icon blobs with string keys
+
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
+  include MixinStorage();
 
   let books = Map.empty<Nat, Book>();
   let users = Map.empty<Principal, User>();
   let userProfiles = Map.empty<Principal, UserProfile>();
   let readingProgress = Map.empty<Principal, Map.Map<Nat, ReadingProgress>>();
   let bookmarks = Map.empty<Principal, List.List<Bookmark>>();
+  let notifications = Map.empty<Principal, List.List<Notification>>(); // Persistent notifications per user
   var nextBookId = 1;
+  var nextNotificationId = 1;
 
   // ─── User Profile (required by frontend) ───────────────────────────────────
 
@@ -163,12 +188,16 @@ actor {
     title : Text,
     author : Text,
     description : Text,
-    genre : Text,
-    coverUrl : Text, // Accepts base64 data URL or external
-    pdfUrl : Text, // Accepts base64 data URL or external
+    genres : [Text], // Max 3 genres
+    cover : ?Storage.ExternalBlob,
+    pdf : ?Storage.ExternalBlob, // PDF file validation handled on frontend
   ) : async Nat {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only registered users can upload books");
+    };
+
+    if (genres.size() > 3) {
+      Runtime.trap("You can only select up to 3 genres for a book");
     };
 
     let bookId = nextBookId;
@@ -179,9 +208,9 @@ actor {
       title;
       author;
       description;
-      genre;
-      coverUrl;
-      pdfUrl;
+      genres;
+      cover;
+      pdf;
       uploadedBy = caller;
       uploadDate = Time.now();
       var status = #pending;
@@ -198,9 +227,9 @@ actor {
     title : Text,
     author : Text,
     description : Text,
-    genre : Text,
-    coverUrl : Text,
-    pdfUrl : Text,
+    genres : [Text],
+    cover : ?Storage.ExternalBlob,
+    pdf : ?Storage.ExternalBlob,
   ) : async () {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only registered users can edit books");
@@ -216,15 +245,19 @@ actor {
           Runtime.trap("Book has reached the maximum number of edits");
         };
 
+        if (genres.size() > 3) {
+          Runtime.trap("You can only select up to 3 genres for a book");
+        };
+
         book.editCount -= 1;
         let updatedBook : Book = {
           book with
           title;
           author;
           description;
-          genre;
-          coverUrl;
-          pdfUrl;
+          genres;
+          cover;
+          pdf;
           var status = #pending;
           var editCount = book.editCount;
           var viewCount = book.viewCount;
@@ -279,7 +312,11 @@ actor {
   public query ({ caller }) func getBooksByGenre(genre : Text) : async [BookView] {
     if (false) { Runtime.trap("unused auth check") };
     books.values().toArray().filter(func(book : Book) : Bool {
-      Text.equal(book.genre, genre) and book.status == #approved
+      book.genres.any(
+        func(g) {
+          Text.equal(g, genre);
+        }
+      ) and book.status == #approved
     }).map(func(b) { BookView.fromBook(b) });
   };
 
@@ -464,5 +501,22 @@ actor {
       }
     );
     sorted.map(func(b) { BookView.fromBook(b) });
+  };
+
+  // ─── New Live Stat Card Queries ─────────────────────────────────────────────
+  public query ({ caller }) func getTotalBooks() : async Nat {
+    books.size();
+  };
+
+  public query ({ caller }) func getTotalActiveReaders() : async Nat {
+    users.size();
+  };
+
+  public query ({ caller }) func getTotalAuthors() : async Nat {
+    let authorSet = Map.empty<Text, ()>();
+    for ((_, book) in books.entries()) {
+      authorSet.add(book.author, ());
+    };
+    authorSet.size();
   };
 };

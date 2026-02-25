@@ -1,98 +1,75 @@
 import React, { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useRegisterUser, useSaveCallerUserProfile } from '../hooks/useQueries';
-import { Loader2, BookOpen } from 'lucide-react';
+import { User, Loader2 } from 'lucide-react';
+import { useInternetIdentity } from '../hooks/useInternetIdentity';
+import { useGetCallerUserProfile, useSaveCallerUserProfile } from '../hooks/useQueries';
+import { toast } from 'sonner';
 
-interface ProfileSetupModalProps {
-  open: boolean;
-}
-
-export default function ProfileSetupModal({ open }: ProfileSetupModalProps) {
-  const [displayName, setDisplayName] = useState('');
-  const [error, setError] = useState('');
-  const registerUser = useRegisterUser();
+export default function ProfileSetupModal() {
+  const { identity } = useInternetIdentity();
+  const { data: userProfile, isLoading, isFetched } = useGetCallerUserProfile();
   const saveProfile = useSaveCallerUserProfile();
+  const [displayName, setDisplayName] = useState('');
+
+  const isAuthenticated = !!identity;
+  const showModal = isAuthenticated && !isLoading && isFetched && userProfile === null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const name = displayName.trim();
-    if (!name) {
-      setError('Please enter your display name');
-      return;
-    }
-    if (name.length < 2) {
-      setError('Name must be at least 2 characters');
-      return;
-    }
-    setError('');
+    if (!displayName.trim()) return;
+
     try {
-      await registerUser.mutateAsync(name);
       await saveProfile.mutateAsync({
-        displayName: name,
+        displayName: displayName.trim(),
         joinDate: BigInt(Date.now()) * BigInt(1_000_000),
       });
-    } catch (err) {
-      setError('Failed to save profile. Please try again.');
+      toast.success(`Welcome to Prodigy, ${displayName.trim()}!`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save profile.');
     }
   };
 
-  const isLoading = registerUser.isPending || saveProfile.isPending;
+  if (!showModal) return null;
 
   return (
-    <Dialog open={open}>
-      <DialogContent className="sm:max-w-md border-gold/20 bg-card" onInteractOutside={(e) => e.preventDefault()}>
-        <DialogHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-gold/10 flex items-center justify-center">
-              <BookOpen className="w-8 h-8 text-gold" />
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+      <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-sm p-6">
+        <div className="flex items-center justify-center mb-4">
+          <div className="w-14 h-14 rounded-full bg-accent/20 border border-accent/30 flex items-center justify-center">
+            <User className="w-7 h-7 text-accent" />
           </div>
-          <DialogTitle className="font-serif text-2xl text-center">Welcome to Prodigy</DialogTitle>
-          <DialogDescription className="text-center text-muted-foreground">
-            Choose a display name to begin your journey as a reader and author.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div className="space-y-2">
-            <Label htmlFor="displayName" className="text-foreground font-medium">
-              Display Name
-            </Label>
-            <Input
-              id="displayName"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="e.g. Marcus Aurelius"
-              className="border-border focus:border-gold focus:ring-gold/20"
-              disabled={isLoading}
-              autoFocus
-            />
-            {error && <p className="text-sm text-destructive">{error}</p>}
-          </div>
-          <Button
+        </div>
+        <h2 className="font-cinzel text-xl font-bold text-foreground text-center mb-1">
+          Welcome to Prodigy
+        </h2>
+        <p className="text-sm text-muted-foreground text-center mb-6">
+          Choose a display name to get started.
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="Your display name"
+            className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50"
+            autoFocus
+            required
+          />
+          <button
             type="submit"
-            disabled={isLoading || !displayName.trim()}
-            className="w-full bg-gold text-navy-deep hover:bg-gold-light font-semibold"
+            disabled={saveProfile.isPending || !displayName.trim()}
+            className="w-full px-4 py-2 bg-accent text-accent-foreground rounded-lg text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {isLoading ? (
+            {saveProfile.isPending ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Setting up...
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Saving...
               </>
             ) : (
-              'Enter the Library'
+              'Get Started'
             )}
-          </Button>
+          </button>
         </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }

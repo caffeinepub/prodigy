@@ -1,11 +1,8 @@
-import React from 'react';
 import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useQuery } from '@tanstack/react-query';
-import { useActor } from '../hooks/useActor';
-import { Shield, Lock, Loader2 } from 'lucide-react';
+import { useIsCallerAdmin } from '../hooks/useQueries';
 import { Button } from '@/components/ui/button';
-
-const ADMIN_PRINCIPAL = 'zhpm4-xby3w-hy7nv-ziwxz-heeqw-f2qf4-p2o5a-qradb';
+import { Shield, Lock, Loader2 } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
 
 interface AdminGuardProps {
   children: React.ReactNode;
@@ -13,85 +10,58 @@ interface AdminGuardProps {
 
 export default function AdminGuard({ children }: AdminGuardProps) {
   const { identity, login, loginStatus } = useInternetIdentity();
-  const { actor, isFetching: actorFetching } = useActor();
-
-  const { data: isAdmin, isLoading: adminCheckLoading } = useQuery<boolean>({
-    queryKey: ['isCallerAdmin'],
-    queryFn: async () => {
-      if (!actor) return false;
-      return actor.isCallerAdmin();
-    },
-    enabled: !!actor && !actorFetching && !!identity,
-  });
-
-  const isLoggingIn = loginStatus === 'logging-in';
   const isAuthenticated = !!identity;
-  const isLoading = actorFetching || adminCheckLoading;
+  const { data: isAdmin, isLoading: adminLoading } = useIsCallerAdmin();
 
-  // Not logged in
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-admin-bg flex items-center justify-center p-4">
-        <div className="text-center max-w-sm">
-          <div className="w-16 h-16 rounded-full bg-admin-gold/10 border border-admin-gold/30 flex items-center justify-center mx-auto mb-4">
-            <Lock className="h-8 w-8 text-admin-gold" />
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+            <Lock className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-xl font-bold text-admin-gold mb-2">Admin Access Required</h1>
-          <p className="text-admin-muted text-sm mb-6">
-            You must log in with the authorized admin identity to access this dashboard.
+          <h2 className="font-cinzel text-2xl font-bold text-foreground mb-3">
+            Admin Access Required
+          </h2>
+          <p className="text-muted-foreground mb-6">
+            Please log in with your admin credentials to access the admin panel.
           </p>
           <Button
             onClick={login}
-            disabled={isLoggingIn}
-            className="bg-admin-gold text-admin-sidebar hover:bg-admin-gold/90 font-semibold px-8"
+            disabled={loginStatus === 'logging-in'}
+            className="gap-2"
           >
-            {isLoggingIn ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Logging in...
-              </>
-            ) : (
-              'Login with Internet Identity'
-            )}
+            <Shield className="w-4 h-4" />
+            {loginStatus === 'logging-in' ? 'Logging in...' : 'Login'}
           </Button>
         </div>
       </div>
     );
   }
 
-  // Loading admin check
-  if (isLoading) {
+  if (adminLoading) {
     return (
-      <div className="min-h-screen bg-admin-bg flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 text-admin-gold animate-spin mx-auto mb-3" />
-          <p className="text-admin-muted text-sm">Verifying admin access...</p>
-        </div>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  // Not admin
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-admin-bg flex items-center justify-center p-4">
-        <div className="text-center max-w-sm">
-          <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4">
-            <Shield className="h-8 w-8 text-red-400" />
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-6">
+            <Shield className="w-8 h-8 text-destructive" />
           </div>
-          <h1 className="text-xl font-bold text-red-400 mb-2">Access Denied</h1>
-          <p className="text-admin-muted text-sm mb-2">
-            Your account does not have admin privileges.
+          <h2 className="font-cinzel text-2xl font-bold text-foreground mb-3">
+            Access Denied
+          </h2>
+          <p className="text-muted-foreground mb-6">
+            You do not have admin privileges to access this page.
           </p>
-          <p className="text-admin-muted text-xs mb-6 font-mono bg-admin-card border border-admin-border rounded px-3 py-2">
-            {identity?.getPrincipal().toString()}
-          </p>
-          <Button
-            variant="outline"
-            onClick={() => window.location.href = '/'}
-            className="border-admin-border text-admin-muted hover:bg-admin-border"
-          >
-            Return to Home
+          <Button asChild variant="outline">
+            <Link to="/">Return Home</Link>
           </Button>
         </div>
       </div>

@@ -1,44 +1,44 @@
 import React from 'react';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
 import { Link } from '@tanstack/react-router';
-import { Button } from '@/components/ui/button';
-import { Lock } from 'lucide-react';
-import LoginButton from './LoginButton';
+import { LogIn, BookOpen } from 'lucide-react';
+import { useInternetIdentity } from '../hooks/useInternetIdentity';
 
 interface AuthGuardProps {
   children: React.ReactNode;
 }
 
 export default function AuthGuard({ children }: AuthGuardProps) {
-  const { identity, isInitializing } = useInternetIdentity();
+  const { identity, loginStatus } = useInternetIdentity();
+  const isAuthenticated = !!identity;
 
-  if (isInitializing) {
+  if (!isAuthenticated) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full border-2 border-gold/30 border-t-gold animate-spin" />
-          <p className="text-muted-foreground font-sans">Initializing...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!identity) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center px-4">
-        <div className="text-center max-w-md">
-          <div className="w-20 h-20 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-6">
-            <Lock className="w-10 h-10 text-gold" />
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="text-center max-w-sm">
+          <div className="w-16 h-16 rounded-full bg-accent/20 border border-accent/30 flex items-center justify-center mx-auto mb-4">
+            <BookOpen className="w-8 h-8 text-accent" />
           </div>
-          <h2 className="font-serif text-2xl font-semibold mb-3">Authentication Required</h2>
-          <p className="text-muted-foreground font-sans mb-6">
-            You need to be logged in to access this page. Please log in with your Internet Identity to continue.
+          <h2 className="font-cinzel text-2xl font-bold text-foreground mb-2">
+            Login Required
+          </h2>
+          <p className="text-muted-foreground mb-6">
+            Please log in to access this page.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <LoginButton />
-            <Button variant="outline" asChild>
-              <Link to="/browse" search={{ genre: undefined }}>Browse Books</Link>
-            </Button>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => {}}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-accent text-accent-foreground rounded-lg font-medium hover:bg-accent/90 transition-colors"
+            >
+              <LogIn className="w-4 h-4" />
+              Login
+            </button>
+            <Link
+              to="/browse"
+              search={{ genre: undefined }}
+              className="text-sm text-muted-foreground hover:text-accent transition-colors"
+            >
+              Browse as Guest
+            </Link>
           </div>
         </div>
       </div>

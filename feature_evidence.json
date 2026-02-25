@@ -2,11 +2,10 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-build-a-complete-admin-dashboard-page-at-the-admin-route-protected-by-the-existing-adminguard-component-the-dashboard-must-contain-clearly-separated-sections-reachable-via-a-sidebar-or-tab-navigation-overview-analytics-user-management-book-management-storage-control-platform-settings-and-security-the-ui-must-be-clean-modern-and-fully-mobile-responsive",
-      "featureTitle": "Build a complete Admin Dashboard page at the `/admin` route, protected by the existing `AdminGuard` component. The dashboard must contain clearly separated sections reachable via a sidebar or tab navigation: Overview/Analytics, User Management, Book Management, Storage Control, Platform Settings, and Security. The UI must be clean, modern, and fully mobile-responsive.",
+      "featureId": "feature-redeploy-the-current-application-to-the-internet-computer-network-without-any-code-changes",
+      "featureTitle": "Redeploy the current application to the Internet Computer network without any code changes.",
       "files": [
-        "frontend/src/components/admin/AdminSidebar.tsx",
-        "frontend/src/pages/AdminDashboard.tsx"
+        "frontend/src/App.tsx"
       ],
       "components": [
         "authorization@4.0.0",
@@ -14,86 +13,11 @@
         "shadcn-ui@1.0.0",
         "build-template-react@1.0.0",
         "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
+        "github-export-icp-cli@1.0.0",
+        "blob-storage@4.0.0"
       ],
       "testIds": [
-        "REQ-2"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-implement-the-analytics-overview-section-of-the-admin-dashboard-display-stat-cards-for-total-registered-users-total-books-total-uploads-total-approved-books-total-pending-books-display-a-list-of-the-most-viewed-books-and-most-bookmarked-books-display-most-active-users-by-upload-count",
-      "featureTitle": "Implement the Analytics/Overview section of the Admin Dashboard. Display stat cards for: total registered users, total books, total uploads, total approved books, total pending books. Display a list of the most-viewed books and most-bookmarked books. Display most-active users by upload count.",
-      "files": [
-        "frontend/src/components/admin/OverviewSection.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-3"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-implement-the-user-management-section-of-the-admin-dashboard-show-a-paginated-or-scrollable-table-of-all-registered-users-with-columns-display-name-principal-id-role-status-active-banned-suspended-books-uploaded-join-date-provide-action-buttons-per-row-to-delete-user-ban-unban-user-suspend-unsuspend-user-confirm-destructive-actions-with-a-confirmation-dialog-before-calling-the-backend",
-      "featureTitle": "Implement the User Management section of the Admin Dashboard. Show a paginated or scrollable table of all registered users with columns: display name, principal ID, role, status (active/banned/suspended), books uploaded, join date. Provide action buttons per row to: delete user, ban/unban user, suspend/unsuspend user. Confirm destructive actions with a confirmation dialog before calling the backend.",
-      "files": [
-        "frontend/src/components/admin/UserManagementSection.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-4"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-implement-the-book-management-section-of-the-admin-dashboard-show-a-searchable-filterable-list-of-all-books-including-pending-and-approved-with-cover-thumbnail-title-author-genre-status-approved-pending-rejected-featured-flag-and-view-count-provide-per-book-actions-edit-title-description-genre-cover-url-delete-approve-reject-feature-unfeature-the-admin-upload-form-should-reuse-or-mirror-the-existing-upload-page-form",
-      "featureTitle": "Implement the Book Management section of the Admin Dashboard. Show a searchable, filterable list of all books (including pending and approved) with cover thumbnail, title, author, genre, status (approved/pending/rejected), featured flag, and view count. Provide per-book actions: edit (title, description, genre, cover URL), delete, approve, reject, feature/unfeature. The admin upload form should reuse or mirror the existing Upload page form.",
-      "files": [
-        "frontend/src/components/admin/BookManagementSection.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-5"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-implement-the-security-section-of-the-admin-dashboard-display-a-list-of-currently-banned-and-suspended-users-with-their-status-and-the-ability-to-unban-unsuspend-from-this-view-add-a-searchable-account-blocking-form-where-the-admin-can-enter-a-principal-id-to-block-ban-that-account-display-a-platform-activity-log-showing-recent-events-new-user-registrations-book-uploads-and-books-removed-with-timestamps-and-actor-principal",
-      "featureTitle": "Implement the Security section of the Admin Dashboard. Display a list of currently banned and suspended users with their status and the ability to unban/unsuspend from this view. Add a searchable account-blocking form where the admin can enter a principal ID to block (ban) that account. Display a platform activity log showing recent events: new user registrations, book uploads, and books removed — with timestamps and actor principal.",
-      "files": [
-        "frontend/src/components/admin/SecuritySection.tsx"
-      ],
-      "components": [
-        "authorization@4.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-8"
+        "REQ-1"
       ],
       "confidence": "high"
     }

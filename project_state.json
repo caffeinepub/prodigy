@@ -1,146 +1,22 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "Prodigy Digital Library — a digital library platform on the Internet Computer with four roles (Guest, Reader, Author, Admin). Admin principal ID: zhpm4-xby3w-hy7nv-ziwxz-heeqw-f2qf4-p2o5a-qradb. Builds have repeatedly failed due to complexity; currently attempting to build the Admin system in focused steps.",
-  "architectural_notes": [
-    "Platform runs on Internet Computer (ICP); Admin principal ID is the canister controller identity",
-    "Authentication via Internet Identity; reading is open to guests, login required for uploads and interactions",
-    "Role-based access control: Guest < Reader < Author < Admin; strict backend enforcement"
-  ],
-  "known_issues": [
-    "Full platform build repeatedly fails due to complexity; building Admin system in focused incremental steps"
-  ],
+  "summary": "New project",
+  "architectural_notes": [],
+  "known_issues": [],
   "isFixRequest": false,
   "existing_features": [
     {
-      "id": "feature-build-a-complete-admin-dashboard-page-at-the-admin-route-protected-by-the-existing-adminguard-component-the-dashboard-must-contain-clearly-separated-sections-reachable-via-a-sidebar-or-tab-navigation-overview-analytics-user-management-book-management-storage-control-platform-settings-and-security-the-ui-must-be-clean-modern-and-fully-mobile-responsive",
-      "title": "Build a complete Admin Dashboard page at the `/admin` route, protected by the existing `AdminGuard` component. The dashboard must contain clearly separated sections reachable via a sidebar or tab navigation: Overview/Analytics, User Management, Book Management, Storage Control, Platform Settings, and Security. The UI must be clean, modern, and fully mobile-responsive.",
-      "reqIds": [
-        "REQ-2"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-implement-the-analytics-overview-section-of-the-admin-dashboard-display-stat-cards-for-total-registered-users-total-books-total-uploads-total-approved-books-total-pending-books-display-a-list-of-the-most-viewed-books-and-most-bookmarked-books-display-most-active-users-by-upload-count",
-      "title": "Implement the Analytics/Overview section of the Admin Dashboard. Display stat cards for: total registered users, total books, total uploads, total approved books, total pending books. Display a list of the most-viewed books and most-bookmarked books. Display most-active users by upload count.",
-      "reqIds": [
-        "REQ-3"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-implement-the-user-management-section-of-the-admin-dashboard-show-a-paginated-or-scrollable-table-of-all-registered-users-with-columns-display-name-principal-id-role-status-active-banned-suspended-books-uploaded-join-date-provide-action-buttons-per-row-to-delete-user-ban-unban-user-suspend-unsuspend-user-confirm-destructive-actions-with-a-confirmation-dialog-before-calling-the-backend",
-      "title": "Implement the User Management section of the Admin Dashboard. Show a paginated or scrollable table of all registered users with columns: display name, principal ID, role, status (active/banned/suspended), books uploaded, join date. Provide action buttons per row to: delete user, ban/unban user, suspend/unsuspend user. Confirm destructive actions with a confirmation dialog before calling the backend.",
-      "reqIds": [
-        "REQ-4"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-implement-the-book-management-section-of-the-admin-dashboard-show-a-searchable-filterable-list-of-all-books-including-pending-and-approved-with-cover-thumbnail-title-author-genre-status-approved-pending-rejected-featured-flag-and-view-count-provide-per-book-actions-edit-title-description-genre-cover-url-delete-approve-reject-feature-unfeature-the-admin-upload-form-should-reuse-or-mirror-the-existing-upload-page-form",
-      "title": "Implement the Book Management section of the Admin Dashboard. Show a searchable, filterable list of all books (including pending and approved) with cover thumbnail, title, author, genre, status (approved/pending/rejected), featured flag, and view count. Provide per-book actions: edit (title, description, genre, cover URL), delete, approve, reject, feature/unfeature. The admin upload form should reuse or mirror the existing Upload page form.",
-      "reqIds": [
-        "REQ-5"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-implement-the-security-section-of-the-admin-dashboard-display-a-list-of-currently-banned-and-suspended-users-with-their-status-and-the-ability-to-unban-unsuspend-from-this-view-add-a-searchable-account-blocking-form-where-the-admin-can-enter-a-principal-id-to-block-ban-that-account-display-a-platform-activity-log-showing-recent-events-new-user-registrations-book-uploads-and-books-removed-with-timestamps-and-actor-principal",
-      "title": "Implement the Security section of the Admin Dashboard. Display a list of currently banned and suspended users with their status and the ability to unban/unsuspend from this view. Add a searchable account-blocking form where the admin can enter a principal ID to block (ban) that account. Display a platform activity log showing recent events: new user registrations, book uploads, and books removed — with timestamps and actor principal.",
-      "reqIds": [
-        "REQ-8"
-      ],
-      "version": 1
-    }
-  ],
-  "new_feature_requests": [
-    {
-      "id": "AR-1",
-      "summary": "Guest role: browse, search, read books without login",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-2",
-      "summary": "Reader role: bookmarks, reading progress, reviews, comments (requires Internet Identity login)",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-3",
-      "summary": "Author role: upload PDFs, edit up to 3x, delete own books, author analytics (requires login)",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-4",
-      "summary": "Admin system: Internet Identity auth gated to principal zhpm4-xby3w-hy7nv-ziwxz-heeqw-f2qf4-p2o5a-qradb with full platform control",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-5",
-      "summary": "Admin Dashboard: user management (view, delete, ban, suspend, activity)",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-6",
-      "summary": "Admin Dashboard: book management (upload, edit, delete any book, approve/reject, feature on homepage)",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-7",
-      "summary": "Admin Dashboard: PDF & storage control (view/delete/replace PDFs, monitor storage, enforce upload limits)",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-8",
-      "summary": "Admin Dashboard: platform settings (name, logo, homepage content, announcements, maintenance mode)",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-9",
-      "summary": "Admin Dashboard: security control (monitor activity, force logout, block accounts) and analytics panel (users, books, uploads, popular content, growth)",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-10",
-      "summary": "Book publishing: immediate visibility after upload; Admin moderates by removal",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-11",
-      "summary": "Extend the backend Motoko actor to support admin-only operations gated to principal ID `zhpm4-xby3w-hy7nv-ziwxz-heeqw-f2qf4-p2o5a-qradb`: get all users with activity info, delete a user, ban/unban a user, suspend/unsuspend a user; delete any book regardless of owner; approve or reject a book (set approval status); feature/unfeature a book on the homepage; get all uploaded PDFs with metadata; delete or replace a PDF; get storage usage stats and enforce a configurable max upload size; get and set platform settings (site name, logo URL, announcement banner text, maintenance mode toggle); force-logout a user (invalidate session marker); get analytics data (total users, total books, total uploads, most-viewed books, most-bookmarked books, new users and books over time). All admin endpoints must verify the caller's principal matches the hardcoded admin principal and trap/return an error otherwise.",
+      "id": "feature-redeploy-the-current-application-to-the-internet-computer-network-without-any-code-changes",
+      "title": "Redeploy the current application to the Internet Computer network without any code changes.",
       "reqIds": [
         "REQ-1"
       ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-16",
-      "summary": "Implement the Storage Control section of the Admin Dashboard. Display aggregate storage usage (total bytes used across all PDFs) and the configured maximum upload size. Show a list of all uploaded PDF entries with file name, associated book title, uploader, file size, and upload date. Provide a delete button per PDF entry and a global control to update the maximum allowed upload size.",
-      "reqIds": [
-        "REQ-6"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-17",
-      "summary": "Implement the Platform Settings section of the Admin Dashboard. Provide an editable form with fields for: site name, logo URL, homepage announcement banner text (with an enable/disable toggle), and a maintenance mode toggle switch. Saving the form calls the backend setPlatformSettings endpoint. When maintenance mode is enabled, non-admin users visiting the frontend should see a maintenance page instead of the normal app.",
-      "reqIds": [
-        "REQ-7"
-      ],
-      "status": "pending"
+      "version": 1
     }
   ],
-  "gameProjectType": "none",
-  "projectName": "Prodigy Digital Library",
+  "new_feature_requests": [],
+  "projectName": "Retry deployment",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

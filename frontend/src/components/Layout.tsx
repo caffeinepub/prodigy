@@ -1,35 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet } from '@tanstack/react-router';
+import { ThemeProvider } from 'next-themes';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import ProfileSetupModal from './ProfileSetupModal';
-import LoadingScreen from './LoadingScreen';
-import { useInternetIdentity } from '../hooks/useInternetIdentity';
-import { useGetCallerUserProfile } from '../hooks/useQueries';
 import { Toaster } from '@/components/ui/sonner';
+import LoadingScreen from './LoadingScreen';
 
 export default function Layout() {
-  const { identity } = useInternetIdentity();
-  const { data: userProfile, isLoading, isFetched } = useGetCallerUserProfile();
-  const [showLoading, setShowLoading] = useState(true);
+  const [showLoading, setShowLoading] = useState(() => {
+    return !sessionStorage.getItem('prodigy_loaded');
+  });
 
-  const isAuthenticated = !!identity;
-  const showProfileSetup = isAuthenticated && !isLoading && isFetched && userProfile === null;
+  useEffect(() => {
+    if (showLoading) {
+      const timer = setTimeout(() => {
+        setShowLoading(false);
+        sessionStorage.setItem('prodigy_loaded', 'true');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [showLoading]);
 
   return (
-    <>
-      {showLoading && (
-        <LoadingScreen onDismiss={() => setShowLoading(false)} />
-      )}
-      <div className="min-h-screen flex flex-col bg-background">
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      {showLoading && <LoadingScreen />}
+      <div className="min-h-screen flex flex-col bg-background text-foreground">
         <Navbar />
         <main className="flex-1">
           <Outlet />
         </main>
         <Footer />
-        <ProfileSetupModal open={showProfileSetup} />
+        <ProfileSetupModal />
         <Toaster richColors position="top-right" />
       </div>
-    </>
+    </ThemeProvider>
   );
 }

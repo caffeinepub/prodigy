@@ -1,7 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: ['class'],
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  darkMode: 'class',
+  content: [
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+  ],
   theme: {
     extend: {
       fontFamily: {
@@ -9,49 +12,44 @@ export default {
         inter: ['Inter', 'sans-serif'],
       },
       colors: {
-        border: 'oklch(var(--border) / <alpha-value>)',
-        input: 'oklch(var(--input) / <alpha-value>)',
-        ring: 'oklch(var(--ring) / <alpha-value>)',
         background: 'oklch(var(--background) / <alpha-value>)',
         foreground: 'oklch(var(--foreground) / <alpha-value>)',
-        primary: {
-          DEFAULT: 'oklch(var(--primary) / <alpha-value>)',
-          foreground: 'oklch(var(--primary-foreground) / <alpha-value>)',
-        },
-        secondary: {
-          DEFAULT: 'oklch(var(--secondary) / <alpha-value>)',
-          foreground: 'oklch(var(--secondary-foreground) / <alpha-value>)',
-        },
-        destructive: {
-          DEFAULT: 'oklch(var(--destructive) / <alpha-value>)',
-          foreground: 'oklch(var(--destructive-foreground) / <alpha-value>)',
-        },
-        muted: {
-          DEFAULT: 'oklch(var(--muted) / <alpha-value>)',
-          foreground: 'oklch(var(--muted-foreground) / <alpha-value>)',
-        },
-        accent: {
-          DEFAULT: 'oklch(var(--accent) / <alpha-value>)',
-          foreground: 'oklch(var(--accent-foreground) / <alpha-value>)',
+        card: {
+          DEFAULT: 'var(--card)',
+          foreground: 'var(--card-foreground)',
         },
         popover: {
-          DEFAULT: 'oklch(var(--popover) / <alpha-value>)',
-          foreground: 'oklch(var(--popover-foreground) / <alpha-value>)',
+          DEFAULT: 'var(--popover)',
+          foreground: 'var(--popover-foreground)',
         },
-        card: {
-          DEFAULT: 'oklch(var(--card) / <alpha-value>)',
-          foreground: 'oklch(var(--card-foreground) / <alpha-value>)',
+        primary: {
+          DEFAULT: 'var(--primary)',
+          foreground: 'var(--primary-foreground)',
         },
-        // Admin theme colors
-        admin: {
-          bg: 'var(--admin-bg)',
-          sidebar: 'var(--admin-sidebar)',
-          card: 'var(--admin-card)',
-          border: 'var(--admin-border)',
-          gold: 'var(--admin-gold)',
-          text: 'var(--admin-text)',
-          muted: 'var(--admin-muted)',
+        secondary: {
+          DEFAULT: 'var(--secondary)',
+          foreground: 'var(--secondary-foreground)',
         },
+        muted: {
+          DEFAULT: 'var(--muted)',
+          foreground: 'var(--muted-foreground)',
+        },
+        accent: {
+          DEFAULT: 'var(--accent)',
+          foreground: 'var(--accent-foreground)',
+        },
+        destructive: {
+          DEFAULT: 'var(--destructive)',
+          foreground: 'var(--destructive-foreground)',
+        },
+        border: 'var(--border)',
+        input: 'var(--input)',
+        ring: 'var(--ring)',
+        'chart-1': 'var(--chart-1)',
+        'chart-2': 'var(--chart-2)',
+        'chart-3': 'var(--chart-3)',
+        'chart-4': 'var(--chart-4)',
+        'chart-5': 'var(--chart-5)',
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -60,21 +58,22 @@ export default {
       },
       keyframes: {
         fadeIn: {
-          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
         goldGlowPulse: {
-          '0%, 100%': {
-            boxShadow: '0 0 20px oklch(0.78 0.14 75 / 0.3), 0 0 40px oklch(0.78 0.14 75 / 0.15)',
-          },
-          '50%': {
-            boxShadow: '0 0 30px oklch(0.78 0.14 75 / 0.5), 0 0 60px oklch(0.78 0.14 75 / 0.25)',
-          },
+          '0%, 100%': { boxShadow: '0 0 20px oklch(0.75 0.15 85 / 0.4)' },
+          '50%': { boxShadow: '0 0 40px oklch(0.75 0.15 85 / 0.8)' },
+        },
+        slideIn: {
+          '0%': { transform: 'translateX(-10px)', opacity: '0' },
+          '100%': { transform: 'translateX(0)', opacity: '1' },
         },
       },
       animation: {
-        'fade-in': 'fadeIn 0.4s ease-out forwards',
-        'gold-glow-pulse': 'goldGlowPulse 2.5s ease-in-out infinite',
+        fadeIn: 'fadeIn 0.5s ease forwards',
+        goldGlowPulse: 'goldGlowPulse 2s ease-in-out infinite',
+        slideIn: 'slideIn 0.3s ease forwards',
       },
     },
   },

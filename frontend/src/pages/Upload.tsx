@@ -1,662 +1,391 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from '@tanstack/react-router';
-import AuthGuard from '../components/AuthGuard';
-import { useUploadBook, useEditBook, useGetBookById } from '../hooks/useQueries';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
+import React, { useState, useRef } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import {
-  Upload as UploadIcon,
-  Loader2,
-  CheckCircle,
-  Edit3,
-  AlertCircle,
-  FileText,
-  ImageIcon,
-  X,
-  CheckCircle2,
+  Upload as UploadIcon, X, AlertCircle, CheckCircle,
+  Loader2, FileText, Image, Info
 } from 'lucide-react';
-import { GENRES } from '../lib/utils';
+import { useUploadBook, useGetCallerUserProfile } from '../hooks/useQueries';
+import { ExternalBlob } from '../backend';
+import AuthGuard from '../components/AuthGuard';
 import { toast } from 'sonner';
-import { Link } from '@tanstack/react-router';
 
-const MAX_COMBINED_SIZE_BYTES = 4 * 1024 * 1024; // 4 MB combined limit
-const MAX_IMAGE_DIMENSION = 1200;
-const TARGET_COVER_SIZE_BYTES = 500 * 1024; // 500 KB target for compression iterations
+const GENRES = [
+  'Fiction', 'Non-Fiction', 'Mystery', 'Thriller', 'Romance',
+  'Science Fiction', 'Fantasy', 'Horror', 'Biography', 'History',
+  'Self-Help', 'Poetry', 'Drama', 'Adventure', 'Children',
+  'Young Adult', 'Graphic Novel', 'Philosophy', 'Science', 'Technology'
+];
 
-interface FormData {
-  title: string;
-  author: string;
-  description: string;
-  genre: string;
-  coverUrl: string;
-  pdfUrl: string;
-}
+const MAX_PDF_SIZE = 20 * 1024 * 1024; // 20MB
 
-interface FormErrors {
-  title?: string;
-  author?: string;
-  description?: string;
-  genre?: string;
-  coverUrl?: string;
-  pdfUrl?: string;
-}
+function GenreSelector({
+  selected,
+  onChange,
+}: {
+  selected: string[];
+  onChange: (genres: string[]) => void;
+}) {
+  const [showWarning, setShowWarning] = useState(false);
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
-
-/**
- * Compress an image File using Canvas API.
- * Resizes to max 1200×1200 preserving aspect ratio, exports as JPEG.
- * Iterates quality from 0.8 → 0.7 → 0.6 until under TARGET_COVER_SIZE_BYTES.
- * Returns { dataUrl, compressedSize }.
- */
-async function compressImage(file: File): Promise<{ dataUrl: string; compressedSize: number }> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-
-      let { width, height } = img;
-      if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
-        const ratio = Math.min(MAX_IMAGE_DIMENSION / width, MAX_IMAGE_DIMENSION / height);
-        width = Math.round(width * ratio);
-        height = Math.round(height * ratio);
-      }
-
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Canvas context unavailable'));
+  const toggleGenre = (genre: string) => {
+    if (selected.includes(genre)) {
+      onChange(selected.filter((g) => g !== genre));
+      setShowWarning(false);
+    } else {
+      if (selected.length >= 3) {
+        setShowWarning(true);
         return;
       }
-      ctx.drawImage(img, 0, 0, width, height);
-
-      const qualities = [0.8, 0.7, 0.6];
-      let dataUrl = '';
-      for (const quality of qualities) {
-        dataUrl = canvas.toDataURL('image/jpeg', quality);
-        // base64 string length * 0.75 ≈ byte size
-        const approxBytes = Math.round((dataUrl.length * 3) / 4);
-        if (approxBytes <= TARGET_COVER_SIZE_BYTES) break;
-      }
-
-      const approxBytes = Math.round((dataUrl.length * 3) / 4);
-      resolve({ dataUrl, compressedSize: approxBytes });
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('Failed to load image'));
-    };
-
-    img.src = objectUrl;
-  });
-}
-
-function UploadForm() {
-  const params = useParams({ strict: false }) as { bookId?: string };
-  const bookId = params.bookId ? BigInt(params.bookId) : undefined;
-  const isEditMode = bookId !== undefined;
-
-  const navigate = useNavigate();
-  const uploadBook = useUploadBook();
-  const editBook = useEditBook();
-  const { data: existingBook, isLoading: bookLoading } = useGetBookById(bookId);
-
-  const [form, setForm] = useState<FormData>({
-    title: '',
-    author: '',
-    description: '',
-    genre: '',
-    coverUrl: '',
-    pdfUrl: '',
-  });
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [submitted, setSubmitted] = useState(false);
-  const [newBookId, setNewBookId] = useState<bigint | null>(null);
-
-  // File state
-  const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [coverPreview, setCoverPreview] = useState<string>('');
-  const [isReadingCover, setIsReadingCover] = useState(false);
-  const [isReadingPdf, setIsReadingPdf] = useState(false);
-
-  // Size tracking
-  const [coverOriginalSize, setCoverOriginalSize] = useState<number | null>(null);
-  const [coverCompressedSize, setCoverCompressedSize] = useState<number | null>(null);
-  const [pdfSize, setPdfSize] = useState<number | null>(null);
-
-  // Combined size error (replaces individual size checks)
-  const [combinedSizeError, setCombinedSizeError] = useState<string>('');
-
-  const coverInputRef = useRef<HTMLInputElement>(null);
-  const pdfInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (existingBook && isEditMode) {
-      setForm({
-        title: existingBook.title,
-        author: existingBook.author,
-        description: existingBook.description,
-        genre: existingBook.genre,
-        coverUrl: existingBook.coverUrl,
-        pdfUrl: existingBook.pdfUrl,
-      });
-      if (existingBook.coverUrl) {
-        setCoverPreview(existingBook.coverUrl);
-      }
-    }
-  }, [existingBook, isEditMode]);
-
-  /**
-   * Evaluate combined size of pdfBase64 + coverBase64 and update error state.
-   */
-  const checkCombinedSize = (pdfBase64: string, coverBase64: string) => {
-    const pdfBytes = Math.round((pdfBase64.length * 3) / 4);
-    const coverBytes = Math.round((coverBase64.length * 3) / 4);
-    const total = pdfBytes + coverBytes;
-    if (total > MAX_COMBINED_SIZE_BYTES) {
-      setCombinedSizeError(
-        `Total upload size exceeds 4 MB (${formatBytes(total)}). Please use a smaller PDF or cover image.`
-      );
-    } else {
-      setCombinedSizeError('');
+      onChange([...selected, genre]);
+      setShowWarning(false);
     }
   };
-
-  const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setCoverFile(file);
-    setCoverOriginalSize(file.size);
-    setCoverCompressedSize(null);
-    setIsReadingCover(true);
-    try {
-      const { dataUrl, compressedSize } = await compressImage(file);
-      setForm(f => {
-        const updated = { ...f, coverUrl: dataUrl };
-        checkCombinedSize(updated.pdfUrl, dataUrl);
-        return updated;
-      });
-      setCoverPreview(dataUrl);
-      setCoverCompressedSize(compressedSize);
-      setErrors(prev => ({ ...prev, coverUrl: undefined }));
-    } catch {
-      toast.error('Failed to process cover image file');
-    } finally {
-      setIsReadingCover(false);
-    }
-  };
-
-  const handlePdfFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setPdfFile(file);
-    setPdfSize(file.size);
-    // Clear any previous combined error while reading
-    setCombinedSizeError('');
-
-    setIsReadingPdf(true);
-    try {
-      const reader = new FileReader();
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error('Failed to read file'));
-        reader.readAsDataURL(file);
-      });
-      setForm(f => {
-        const updated = { ...f, pdfUrl: dataUrl };
-        checkCombinedSize(dataUrl, updated.coverUrl);
-        return updated;
-      });
-      setErrors(prev => ({ ...prev, pdfUrl: undefined }));
-    } catch {
-      toast.error('Failed to read PDF file');
-    } finally {
-      setIsReadingPdf(false);
-    }
-  };
-
-  const clearCoverFile = () => {
-    setCoverFile(null);
-    setCoverPreview('');
-    setCoverOriginalSize(null);
-    setCoverCompressedSize(null);
-    setForm(f => {
-      const updated = { ...f, coverUrl: '' };
-      checkCombinedSize(updated.pdfUrl, '');
-      return updated;
-    });
-    if (coverInputRef.current) coverInputRef.current.value = '';
-  };
-
-  const clearPdfFile = () => {
-    setPdfFile(null);
-    setPdfSize(null);
-    setForm(f => {
-      const updated = { ...f, pdfUrl: '' };
-      checkCombinedSize('', updated.coverUrl);
-      return updated;
-    });
-    if (pdfInputRef.current) pdfInputRef.current.value = '';
-  };
-
-  const validate = (): boolean => {
-    const newErrors: FormErrors = {};
-    if (!form.title.trim()) newErrors.title = 'Title is required';
-    if (!form.author.trim()) newErrors.author = 'Author name is required';
-    if (!form.description.trim()) newErrors.description = 'Description is required';
-    if (!form.genre) newErrors.genre = 'Please select a genre';
-    if (!form.coverUrl) newErrors.coverUrl = 'Cover image is required';
-    if (!form.pdfUrl) newErrors.pdfUrl = 'PDF file is required';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (combinedSizeError) return;
-    if (!validate()) return;
-
-    try {
-      if (isEditMode && bookId !== undefined) {
-        await editBook.mutateAsync({
-          bookId,
-          title: form.title.trim(),
-          author: form.author.trim(),
-          description: form.description.trim(),
-          genre: form.genre,
-          coverUrl: form.coverUrl,
-          pdfUrl: form.pdfUrl,
-        });
-        toast.success('Book updated successfully! It will be reviewed before publishing.');
-        navigate({ to: '/dashboard' });
-      } else {
-        const id = await uploadBook.mutateAsync({
-          title: form.title.trim(),
-          author: form.author.trim(),
-          description: form.description.trim(),
-          genre: form.genre,
-          coverUrl: form.coverUrl,
-          pdfUrl: form.pdfUrl,
-        });
-        setNewBookId(id);
-        setSubmitted(true);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'An error occurred';
-      toast.error(message.includes('Unauthorized') ? 'You must be logged in to upload books' : message);
-    }
-  };
-
-  const isLoading = uploadBook.isPending || editBook.isPending;
-  const isProcessingFiles = isReadingCover || isReadingPdf;
-  const editsRemaining = existingBook ? Number(existingBook.editCount) : null;
-  const hasCombinedError = !!combinedSizeError;
-  const isDisabled = isLoading || isProcessingFiles || (isEditMode && editsRemaining === 0) || hasCombinedError;
-
-  if (isEditMode && bookLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="w-10 h-10 rounded-full border-2 border-gold/30 border-t-gold animate-spin" />
-      </div>
-    );
-  }
-
-  if (submitted && newBookId !== null) {
-    return (
-      <div className="text-center py-16 px-4">
-        <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-6">
-          <CheckCircle className="w-10 h-10 text-emerald-500" />
-        </div>
-        <h2 className="font-serif text-3xl font-semibold mb-3 text-foreground">Book Submitted!</h2>
-        <p className="text-muted-foreground font-sans mb-2 max-w-md mx-auto">
-          Your book has been submitted for review. An admin will approve it before it becomes publicly visible.
-        </p>
-        <p className="text-sm text-muted-foreground font-sans mb-8">
-          You have <strong className="text-gold">3 edits</strong> remaining for this book.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button asChild className="bg-gold text-navy-deep hover:bg-gold-light font-semibold">
-            <Link to="/dashboard">View My Books</Link>
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setSubmitted(false);
-              setNewBookId(null);
-              setForm({ title: '', author: '', description: '', genre: '', coverUrl: '', pdfUrl: '' });
-              setCoverFile(null);
-              setPdfFile(null);
-              setCoverPreview('');
-              setCoverOriginalSize(null);
-              setCoverCompressedSize(null);
-              setPdfSize(null);
-              setCombinedSizeError('');
-            }}
-            className="border-gold/30 text-gold hover:bg-gold/10"
-          >
-            Upload Another
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <Card className="border-border/50">
-        <CardHeader>
-          <div className="flex items-center gap-3 mb-2">
-            {isEditMode ? (
-              <Edit3 className="w-6 h-6 text-gold" />
-            ) : (
-              <UploadIcon className="w-6 h-6 text-gold" />
-            )}
-            <CardTitle className="font-serif text-2xl">
-              {isEditMode ? 'Edit Book' : 'Upload a Book'}
-            </CardTitle>
-          </div>
-          <CardDescription className="font-sans">
-            {isEditMode
-              ? `Update your book's information. ${editsRemaining !== null ? `You have ${editsRemaining} edit${editsRemaining !== 1 ? 's' : ''} remaining.` : ''}`
-              : 'Share your work with the Prodigy community. All submissions are reviewed before publishing.'}
-          </CardDescription>
-          {isEditMode && editsRemaining !== null && (
-            <div className={`flex items-center gap-2 mt-2 px-3 py-2 rounded-lg text-sm font-sans ${
-              editsRemaining === 0
-                ? 'bg-destructive/10 text-destructive'
-                : editsRemaining === 1
-                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                : 'bg-gold/10 text-gold'
-            }`}>
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              {editsRemaining === 0
-                ? 'No edits remaining. This book cannot be edited further.'
-                : `${editsRemaining} edit${editsRemaining !== 1 ? 's' : ''} remaining`}
-            </div>
-          )}
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Title */}
-            <div className="space-y-1.5">
-              <Label htmlFor="title" className="font-medium">
-                Book Title <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="title"
-                value={form.title}
-                onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
-                placeholder="Enter the book title"
-                className={errors.title ? 'border-destructive' : 'focus:border-gold'}
-                disabled={isLoading || isProcessingFiles || (isEditMode && editsRemaining === 0)}
-              />
-              {errors.title && <p className="text-xs text-destructive">{errors.title}</p>}
-            </div>
-
-            {/* Author */}
-            <div className="space-y-1.5">
-              <Label htmlFor="author" className="font-medium">
-                Author Name <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="author"
-                value={form.author}
-                onChange={(e) => setForm(f => ({ ...f, author: e.target.value }))}
-                placeholder="Author's full name"
-                className={errors.author ? 'border-destructive' : 'focus:border-gold'}
-                disabled={isLoading || isProcessingFiles || (isEditMode && editsRemaining === 0)}
-              />
-              {errors.author && <p className="text-xs text-destructive">{errors.author}</p>}
-            </div>
-
-            {/* Description */}
-            <div className="space-y-1.5">
-              <Label htmlFor="description" className="font-medium">
-                Description <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="description"
-                value={form.description}
-                onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="Write a compelling description of your book..."
-                rows={4}
-                className={errors.description ? 'border-destructive' : 'focus:border-gold'}
-                disabled={isLoading || isProcessingFiles || (isEditMode && editsRemaining === 0)}
-              />
-              {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
-            </div>
-
-            {/* Genre */}
-            <div className="space-y-1.5">
-              <Label className="font-medium">
-                Genre <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={form.genre}
-                onValueChange={(val) => setForm(f => ({ ...f, genre: val }))}
-                disabled={isLoading || isProcessingFiles || (isEditMode && editsRemaining === 0)}
-              >
-                <SelectTrigger className={errors.genre ? 'border-destructive' : 'focus:border-gold'}>
-                  <SelectValue placeholder="Select a genre" />
-                </SelectTrigger>
-                <SelectContent>
-                  {GENRES.map(genre => (
-                    <SelectItem key={genre} value={genre}>{genre}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.genre && <p className="text-xs text-destructive">{errors.genre}</p>}
-            </div>
-
-            {/* Cover Image File Upload */}
-            <div className="space-y-1.5">
-              <Label className="font-medium">
-                Cover Image <span className="text-destructive">*</span>
-              </Label>
-              {!coverFile && !coverPreview ? (
-                <label
-                  htmlFor="coverFile"
-                  className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                    errors.coverUrl
-                      ? 'border-destructive bg-destructive/5'
-                      : 'border-border/60 hover:border-gold/50 hover:bg-gold/5'
-                  } ${isLoading || isProcessingFiles ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    {isReadingCover ? (
-                      <Loader2 className="w-6 h-6 animate-spin text-gold" />
-                    ) : (
-                      <ImageIcon className="w-6 h-6" />
-                    )}
-                    <span className="text-sm font-sans">
-                      {isReadingCover ? 'Compressing image...' : 'Click to upload cover image'}
-                    </span>
-                    <span className="text-xs text-muted-foreground/70">JPG, JPEG, PNG — auto-compressed</span>
-                  </div>
-                  <input
-                    ref={coverInputRef}
-                    id="coverFile"
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png"
-                    className="hidden"
-                    onChange={handleCoverFileChange}
-                    disabled={isLoading || isProcessingFiles}
-                  />
-                </label>
-              ) : (
-                <div className="flex items-start gap-3 p-3 rounded-lg border border-border/50 bg-muted/30">
-                  {coverPreview && (
-                    <img
-                      src={coverPreview}
-                      alt="Cover preview"
-                      className="w-16 h-20 object-cover rounded border border-border/30 shrink-0"
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium font-sans truncate text-foreground">
-                      {coverFile?.name ?? 'Existing cover'}
-                    </p>
-                    {coverOriginalSize !== null && (
-                      <p className="text-xs text-muted-foreground font-sans mt-0.5">
-                        Original: {formatBytes(coverOriginalSize)}
-                        {coverCompressedSize !== null && (
-                          <span className="ml-2 text-emerald-600 dark:text-emerald-400">
-                            → Compressed: {formatBytes(coverCompressedSize)}
-                          </span>
-                        )}
-                        {isReadingCover && (
-                          <span className="ml-2 text-gold">
-                            <Loader2 className="inline w-3 h-3 animate-spin" /> Compressing…
-                          </span>
-                        )}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={clearCoverFile}
-                    className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                    disabled={isLoading || isProcessingFiles}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-              {errors.coverUrl && <p className="text-xs text-destructive">{errors.coverUrl}</p>}
-            </div>
-
-            {/* PDF File Upload */}
-            <div className="space-y-1.5">
-              <Label className="font-medium">
-                PDF File <span className="text-destructive">*</span>
-              </Label>
-              {!pdfFile ? (
-                <label
-                  htmlFor="pdfFile"
-                  className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                    errors.pdfUrl
-                      ? 'border-destructive bg-destructive/5'
-                      : 'border-border/60 hover:border-gold/50 hover:bg-gold/5'
-                  } ${isLoading || isProcessingFiles ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    {isReadingPdf ? (
-                      <Loader2 className="w-6 h-6 animate-spin text-gold" />
-                    ) : (
-                      <FileText className="w-6 h-6" />
-                    )}
-                    <span className="text-sm font-sans">
-                      {isReadingPdf ? 'Reading PDF...' : 'Click to upload PDF'}
-                    </span>
-                    <span className="text-xs text-muted-foreground/70">PDF files only</span>
-                  </div>
-                  <input
-                    ref={pdfInputRef}
-                    id="pdfFile"
-                    type="file"
-                    accept="application/pdf"
-                    className="hidden"
-                    onChange={handlePdfFileChange}
-                    disabled={isLoading || isProcessingFiles}
-                  />
-                </label>
-              ) : (
-                <div className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-muted/30">
-                  <FileText className="w-8 h-8 text-gold shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium font-sans truncate text-foreground">{pdfFile.name}</p>
-                    {pdfSize !== null && (
-                      <p className="text-xs font-sans mt-0.5 flex items-center gap-1.5">
-                        <span className="text-muted-foreground">{formatBytes(pdfSize)}</span>
-                        {isReadingPdf ? (
-                          <span className="text-gold flex items-center gap-1">
-                            <Loader2 className="w-3 h-3 animate-spin" /> Reading…
-                          </span>
-                        ) : form.pdfUrl ? (
-                          <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" /> Ready
-                          </span>
-                        ) : null}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={clearPdfFile}
-                    className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                    disabled={isLoading || isProcessingFiles}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-              {errors.pdfUrl && <p className="text-xs text-destructive">{errors.pdfUrl}</p>}
-            </div>
-
-            {/* Combined size error */}
-            {combinedSizeError && (
-              <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm font-sans">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{combinedSizeError}</span>
-              </div>
-            )}
-
-            {/* Submit */}
-            <Button
-              type="submit"
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-sm font-medium text-foreground">
+          Genres <span className="text-muted-foreground">(select up to 3)</span>
+        </label>
+        <span className={`text-xs font-medium ${selected.length === 3 ? 'text-accent' : 'text-muted-foreground'}`}>
+          {selected.length} / 3 selected
+        </span>
+      </div>
+      {showWarning && (
+        <div className="flex items-center gap-2 text-xs text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 rounded-lg px-3 py-2 mb-2">
+          <AlertCircle className="w-3 h-3 shrink-0" />
+          Maximum 3 genres allowed. Deselect one to choose another.
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {GENRES.map((genre) => {
+          const isSelected = selected.includes(genre);
+          const isDisabled = !isSelected && selected.length >= 3;
+          return (
+            <button
+              key={genre}
+              type="button"
+              onClick={() => toggleGenre(genre)}
               disabled={isDisabled}
-              className="w-full bg-gold text-navy-deep hover:bg-gold-light font-semibold disabled:opacity-50"
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                isSelected
+                  ? 'bg-accent text-accent-foreground border-accent shadow-sm shadow-accent/30'
+                  : isDisabled
+                  ? 'bg-muted/30 text-muted-foreground/40 border-border/20 cursor-not-allowed'
+                  : 'bg-muted text-muted-foreground border-border/40 hover:border-accent/50 hover:text-foreground'
+              }`}
             >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {isEditMode ? 'Saving Changes...' : 'Uploading...'}
-                </>
-              ) : isProcessingFiles ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processing files...
-                </>
-              ) : isEditMode ? (
-                'Save Changes'
-              ) : (
-                'Submit for Review'
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+              {genre}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 export default function Upload() {
+  const navigate = useNavigate();
+  const { data: userProfile } = useGetCallerUserProfile();
+  const uploadMutation = useUploadBook();
+
+  const [title, setTitle] = useState('');
+  const [author, setAuthor] = useState(userProfile?.displayName || '');
+  const [description, setDescription] = useState('');
+  const [genres, setGenres] = useState<string[]>([]);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [coverError, setCoverError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    setPdfError(null);
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      setPdfError('Only PDF files are accepted. Please select a valid PDF file.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > MAX_PDF_SIZE) {
+      setPdfError('File exceeds 20MB limit. Please compress your PDF before uploading.');
+      e.target.value = '';
+      return;
+    }
+    setPdfFile(file);
+  };
+
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    setCoverError(null);
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setCoverError('Only image files are accepted for the cover.');
+      e.target.value = '';
+      return;
+    }
+    setCoverFile(file);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!title.trim()) {
+      toast.error('Please enter a book title.');
+      return;
+    }
+    if (!author.trim()) {
+      toast.error('Please enter the author name.');
+      return;
+    }
+    if (genres.length === 0) {
+      toast.error('Please select at least one genre.');
+      return;
+    }
+
+    try {
+      let coverBlob: ExternalBlob | null = null;
+      let pdfBlob: ExternalBlob | null = null;
+
+      if (coverFile) {
+        const coverBytes = new Uint8Array(await coverFile.arrayBuffer());
+        coverBlob = ExternalBlob.fromBytes(coverBytes);
+      }
+
+      if (pdfFile) {
+        const pdfBytes = new Uint8Array(await pdfFile.arrayBuffer());
+        pdfBlob = ExternalBlob.fromBytes(pdfBytes).withUploadProgress((pct) => {
+          setUploadProgress(pct);
+        });
+      }
+
+      await uploadMutation.mutateAsync({
+        title,
+        author,
+        description,
+        genres,
+        cover: coverBlob,
+        pdf: pdfBlob,
+      });
+
+      toast.success('Book uploaded! It will appear in the library after review.');
+      navigate({ to: '/dashboard' });
+    } catch (err: any) {
+      toast.error(err?.message || 'Upload failed. Please try again.');
+    }
+  };
+
+  const isLoading = uploadMutation.isPending;
+
   return (
     <AuthGuard>
-      <main className="container mx-auto px-4 py-10">
-        <UploadForm />
-      </main>
+      <div className="min-h-screen bg-background">
+        <div className="border-b border-border/40 bg-card/30 backdrop-blur-sm">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <h1 className="font-cinzel text-3xl font-bold text-foreground mb-2">
+              Upload a Book
+            </h1>
+            <p className="text-muted-foreground">
+              Share your work with readers around the world.
+            </p>
+          </div>
+        </div>
+
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Title */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Book Title <span className="text-destructive">*</span>
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Enter book title"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50"
+                required
+              />
+            </div>
+
+            {/* Author */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Author Name <span className="text-destructive">*</span>
+              </label>
+              <input
+                type="text"
+                value={author}
+                onChange={(e) => setAuthor(e.target.value)}
+                placeholder="Enter author name"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50"
+                required
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Description
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Enter book description"
+                rows={4}
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 resize-none"
+              />
+            </div>
+
+            {/* Genres */}
+            <GenreSelector selected={genres} onChange={setGenres} />
+
+            {/* Cover Image */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Cover Image <span className="text-muted-foreground">(optional)</span>
+              </label>
+              <div
+                onClick={() => coverInputRef.current?.click()}
+                className="border-2 border-dashed border-border/60 rounded-lg p-6 text-center cursor-pointer hover:border-accent/50 transition-colors"
+              >
+                {coverFile ? (
+                  <div className="flex items-center justify-center gap-2 text-sm text-foreground">
+                    <CheckCircle className="w-5 h-5 text-green-400" />
+                    {coverFile.name}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setCoverFile(null); }}
+                      className="ml-2 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-muted-foreground">
+                    <Image className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Click to upload cover image</p>
+                    <p className="text-xs mt-1">PNG, JPG, WEBP supported</p>
+                  </div>
+                )}
+              </div>
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleCoverChange}
+                className="hidden"
+              />
+              {coverError && (
+                <p className="mt-1 text-xs text-destructive flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> {coverError}
+                </p>
+              )}
+            </div>
+
+            {/* PDF Upload */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                PDF File <span className="text-muted-foreground">(optional)</span>
+              </label>
+              {/* Required info message */}
+              <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/40 border border-border/40 rounded-lg px-3 py-2 mb-2">
+                <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-accent/70" />
+                <span>
+                  Maximum file size is 20MB. Please compress your PDF before uploading.
+                </span>
+              </div>
+              <div
+                onClick={() => pdfInputRef.current?.click()}
+                className="border-2 border-dashed border-border/60 rounded-lg p-6 text-center cursor-pointer hover:border-accent/50 transition-colors"
+              >
+                {pdfFile ? (
+                  <div className="flex items-center justify-center gap-2 text-sm text-foreground">
+                    <CheckCircle className="w-5 h-5 text-green-400" />
+                    {pdfFile.name} ({(pdfFile.size / 1024 / 1024).toFixed(2)} MB)
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setPdfFile(null); }}
+                      className="ml-2 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-muted-foreground">
+                    <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Click to upload PDF</p>
+                    <p className="text-xs mt-1">PDF only, max 20MB</p>
+                  </div>
+                )}
+              </div>
+              <input
+                ref={pdfInputRef}
+                type="file"
+                accept="application/pdf"
+                onChange={handlePdfChange}
+                className="hidden"
+              />
+              {pdfError && (
+                <p className="mt-1 text-xs text-destructive flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> {pdfError}
+                </p>
+              )}
+            </div>
+
+            {/* Upload Progress */}
+            {isLoading && uploadProgress > 0 && (
+              <div>
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                  <span>Uploading...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className="bg-accent h-2 rounded-full transition-all"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Submit */}
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => navigate({ to: '/dashboard' })}
+                disabled={isLoading}
+                className="flex-1 px-4 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="flex-1 px-4 py-2 rounded-lg bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <UploadIcon className="w-4 h-4" />
+                    Upload Book
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </AuthGuard>
   );
 }

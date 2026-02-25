@@ -21,19 +21,20 @@ export type BookStatus = { 'pending' : null } |
   { 'rejected' : null };
 export interface BookView {
   'id' : bigint,
+  'pdf' : [] | [ExternalBlob],
   'status' : BookStatus,
   'title' : string,
+  'cover' : [] | [ExternalBlob],
   'description' : string,
   'author' : string,
   'viewCount' : bigint,
-  'genre' : string,
-  'pdfUrl' : string,
-  'coverUrl' : string,
+  'genres' : Array<string>,
   'editCount' : bigint,
   'uploadDate' : Time,
   'uploadedBy' : Principal,
 }
 export interface Bookmark { 'user' : Principal, 'bookId' : bigint }
+export type ExternalBlob = Uint8Array;
 export interface ReadingProgress {
   'user' : Principal,
   'bookId' : bigint,
@@ -50,13 +51,47 @@ export interface UserProfile { 'displayName' : string, 'joinDate' : Time }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
+export interface _CaffeineStorageCreateCertificateResult {
+  'method' : string,
+  'blob_hash' : string,
+}
+export interface _CaffeineStorageRefillInformation {
+  'proposed_top_up_amount' : [] | [bigint],
+}
+export interface _CaffeineStorageRefillResult {
+  'success' : [] | [boolean],
+  'topped_up_amount' : [] | [bigint],
+}
 export interface _SERVICE {
+  '_caffeineStorageBlobIsLive' : ActorMethod<[Uint8Array], boolean>,
+  '_caffeineStorageBlobsToDelete' : ActorMethod<[], Array<Uint8Array>>,
+  '_caffeineStorageConfirmBlobDeletion' : ActorMethod<
+    [Array<Uint8Array>],
+    undefined
+  >,
+  '_caffeineStorageCreateCertificate' : ActorMethod<
+    [string],
+    _CaffeineStorageCreateCertificateResult
+  >,
+  '_caffeineStorageRefillCashier' : ActorMethod<
+    [[] | [_CaffeineStorageRefillInformation]],
+    _CaffeineStorageRefillResult
+  >,
+  '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addBookmark' : ActorMethod<[bigint], undefined>,
   'approveBook' : ActorMethod<[bigint], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'editBook' : ActorMethod<
-    [bigint, string, string, string, string, string, string],
+    [
+      bigint,
+      string,
+      string,
+      string,
+      Array<string>,
+      [] | [ExternalBlob],
+      [] | [ExternalBlob],
+    ],
     undefined
   >,
   'getAdminStats' : ActorMethod<[], AdminStats>,
@@ -72,6 +107,9 @@ export interface _SERVICE {
   'getMyUploadedBooks' : ActorMethod<[], Array<BookView>>,
   'getPendingBooks' : ActorMethod<[], Array<BookView>>,
   'getReadingProgress' : ActorMethod<[bigint], [] | [ReadingProgress]>,
+  'getTotalActiveReaders' : ActorMethod<[], bigint>,
+  'getTotalAuthors' : ActorMethod<[], bigint>,
+  'getTotalBooks' : ActorMethod<[], bigint>,
   'getUserProfile' : ActorMethod<[Principal], [] | [User]>,
   'incrementBookView' : ActorMethod<[bigint], undefined>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
@@ -81,7 +119,14 @@ export interface _SERVICE {
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'saveReadingProgress' : ActorMethod<[bigint, bigint], undefined>,
   'uploadBook' : ActorMethod<
-    [string, string, string, string, string, string],
+    [
+      string,
+      string,
+      string,
+      Array<string>,
+      [] | [ExternalBlob],
+      [] | [ExternalBlob],
+    ],
     bigint
   >,
 }
