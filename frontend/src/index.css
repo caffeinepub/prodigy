@@ -1,0 +1,99 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: oklch(0.12 0.015 260);
+    --foreground: oklch(0.92 0.01 80);
+
+    --card: oklch(0.16 0.018 260);
+    --card-foreground: oklch(0.92 0.01 80);
+
+    --popover: oklch(0.16 0.018 260);
+    --popover-foreground: oklch(0.92 0.01 80);
+
+    --primary: oklch(0.78 0.14 75);
+    --primary-foreground: oklch(0.12 0.015 260);
+
+    --secondary: oklch(0.22 0.02 260);
+    --secondary-foreground: oklch(0.85 0.01 80);
+
+    --muted: oklch(0.22 0.02 260);
+    --muted-foreground: oklch(0.58 0.015 260);
+
+    --accent: oklch(0.22 0.02 260);
+    --accent-foreground: oklch(0.85 0.01 80);
+
+    --destructive: oklch(0.55 0.22 25);
+    --destructive-foreground: oklch(0.95 0.01 80);
+
+    --border: oklch(0.25 0.02 260);
+    --input: oklch(0.25 0.02 260);
+    --ring: oklch(0.78 0.14 75);
+
+    --radius: 0.5rem;
+
+    /* Admin theme tokens */
+    --admin-bg: oklch(0.10 0.015 255);
+    --admin-sidebar: oklch(0.13 0.018 255);
+    --admin-card: oklch(0.16 0.018 255);
+    --admin-border: oklch(0.22 0.02 255);
+    --admin-gold: oklch(0.78 0.14 75);
+    --admin-text: oklch(0.90 0.01 80);
+    --admin-muted: oklch(0.55 0.015 255);
+  }
+
+  .dark {
+    --background: oklch(0.12 0.015 260);
+    --foreground: oklch(0.92 0.01 80);
+    --card: oklch(0.16 0.018 260);
+    --card-foreground: oklch(0.92 0.01 80);
+    --popover: oklch(0.16 0.018 260);
+    --popover-foreground: oklch(0.92 0.01 80);
+    --primary: oklch(0.78 0.14 75);
+    --primary-foreground: oklch(0.12 0.015 260);
+    --secondary: oklch(0.22 0.02 260);
+    --secondary-foreground: oklch(0.85 0.01 80);
+    --muted: oklch(0.22 0.02 260);
+    --muted-foreground: oklch(0.58 0.015 260);
+    --accent: oklch(0.22 0.02 260);
+    --accent-foreground: oklch(0.85 0.01 80);
+    --destructive: oklch(0.55 0.22 25);
+    --destructive-foreground: oklch(0.95 0.01 80);
+    --border: oklch(0.25 0.02 260);
+    --input: oklch(0.25 0.02 260);
+    --ring: oklch(0.78 0.14 75);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+  h1, h2, h3 {
+    font-family: 'Cinzel', serif;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: oklch(0.14 0.015 260);
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.30 0.02 260);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.78 0.14 75);
+}

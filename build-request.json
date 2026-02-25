@@ -1,0 +1,211 @@
+{
+  "kind": "build_request",
+  "title": "Build Admin Dashboard with full platform control for Prodigy Digital Library",
+  "projectName": "Prodigy Digital Library",
+  "priority": "normal",
+  "requirements": [
+    {
+      "id": "REQ-1",
+      "text": "Extend the backend Motoko actor to support admin-only operations gated to principal ID `zhpm4-xby3w-hy7nv-ziwxz-heeqw-f2qf4-p2o5a-qradb`: get all users with activity info, delete a user, ban/unban a user, suspend/unsuspend a user; delete any book regardless of owner; approve or reject a book (set approval status); feature/unfeature a book on the homepage; get all uploaded PDFs with metadata; delete or replace a PDF; get storage usage stats and enforce a configurable max upload size; get and set platform settings (site name, logo URL, announcement banner text, maintenance mode toggle); force-logout a user (invalidate session marker); get analytics data (total users, total books, total uploads, most-viewed books, most-bookmarked books, new users and books over time). All admin endpoints must verify the caller's principal matches the hardcoded admin principal and trap/return an error otherwise.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-1",
+          "msg-2",
+          "msg-3",
+          "msg-4"
+        ],
+        "quotes": [
+          "Only Admin can: Access Admin Dashboard, Change core settings, Delete the platform content, Control storage system, Manage backend functionality",
+          "Admin Principal ID is the controller identity"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Calling any admin endpoint with a non-admin principal returns an access-denied error and does not mutate state.",
+        "Calling admin endpoints with principal `zhpm4-xby3w-hy7nv-ziwxz-heeqw-f2qf4-p2o5a-qradb` succeeds and mutates state as expected.",
+        "banUser and suspendUser mark the user record accordingly; bannedusers cannot perform authenticated actions.",
+        "getPlatformSettings and setPlatformSettings correctly read and write site name, logo URL, announcement text, and maintenance mode flag.",
+        "getAnalytics returns total user count, total book count, most-viewed books list, and most-bookmarked books list.",
+        "getStorageStats returns aggregate PDF storage bytes used and the current configured max upload size.",
+        "featureBook marks a book as featured; featured books can be queried separately for homepage display."
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "Build a complete Admin Dashboard page at the `/admin` route, protected by the existing `AdminGuard` component. The dashboard must contain clearly separated sections reachable via a sidebar or tab navigation: Overview/Analytics, User Management, Book Management, Storage Control, Platform Settings, and Security. The UI must be clean, modern, and fully mobile-responsive.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-2",
+          "msg-3"
+        ],
+        "quotes": [
+          "Clean, modern, mobile-responsive Admin Dashboard",
+          "Strict backend role-based access control"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Navigating to `/admin` while not logged in or not the admin principal shows the access-denied UI from AdminGuard.",
+        "Navigating to `/admin` as the admin principal renders the Admin Dashboard with all sections accessible.",
+        "The dashboard is usable on mobile viewports (320px and up) with a collapsible sidebar or bottom tab navigation.",
+        "Each section loads its data independently with loading skeletons and error states."
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Implement the Analytics/Overview section of the Admin Dashboard. Display stat cards for: total registered users, total books, total uploads, total approved books, total pending books. Display a list of the most-viewed books and most-bookmarked books. Display most-active users by upload count.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-3"
+        ],
+        "quotes": [
+          "Show total users, books, and uploads",
+          "Show most popular books",
+          "Show most active users",
+          "Show platform growth statistics"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Stat cards show correct counts fetched from the backend getAnalytics/adminStats endpoints.",
+        "Most-viewed and most-bookmarked book lists render book title and count.",
+        "Most-active users list renders display name and upload count.",
+        "All data refreshes when the admin revisits the section."
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "text": "Implement the User Management section of the Admin Dashboard. Show a paginated or scrollable table of all registered users with columns: display name, principal ID, role, status (active/banned/suspended), books uploaded, join date. Provide action buttons per row to: delete user, ban/unban user, suspend/unsuspend user. Confirm destructive actions with a confirmation dialog before calling the backend.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-2",
+          "msg-3"
+        ],
+        "quotes": [
+          "View all registered users",
+          "Delete users",
+          "Ban or suspend users",
+          "See user activity (books uploaded, reading activity)"
+        ]
+      },
+      "acceptanceCriteria": [
+        "User table populates with all registered users from the backend.",
+        "Ban/unban button label toggles based on current user status.",
+        "Delete action shows a confirmation dialog; confirming calls deleteUser and removes the row.",
+        "Toast notifications confirm success or display errors for each action."
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "text": "Implement the Book Management section of the Admin Dashboard. Show a searchable, filterable list of all books (including pending and approved) with cover thumbnail, title, author, genre, status (approved/pending/rejected), featured flag, and view count. Provide per-book actions: edit (title, description, genre, cover URL), delete, approve, reject, feature/unfeature. The admin upload form should reuse or mirror the existing Upload page form.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-2",
+          "msg-3"
+        ],
+        "quotes": [
+          "View all books",
+          "Upload new books",
+          "Edit any book (title, description, genre, cover, PDF)",
+          "Delete any book",
+          "Approve or reject uploaded books",
+          "Feature books on homepage"
+        ]
+      },
+      "acceptanceCriteria": [
+        "All books regardless of status appear in the admin book list.",
+        "Approve/reject buttons update the book's approval status and re-fetch the list.",
+        "Feature/unfeature toggle updates the book's featured flag.",
+        "Edit form is pre-populated with the book's current data and saves changes to the backend.",
+        "Delete action requires confirmation before removing the book."
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "text": "Implement the Storage Control section of the Admin Dashboard. Display aggregate storage usage (total bytes used across all PDFs) and the configured maximum upload size. Show a list of all uploaded PDF entries with file name, associated book title, uploader, file size, and upload date. Provide a delete button per PDF entry and a global control to update the maximum allowed upload size.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-3"
+        ],
+        "quotes": [
+          "View all uploaded PDFs",
+          "Delete or replace PDFs",
+          "Monitor storage usage",
+          "Enforce upload size limits"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Storage stats card shows total bytes used and current max upload size.",
+        "PDF list shows all entries with metadata from the backend.",
+        "Deleting a PDF entry calls the backend, removes it from the list, and updates the storage stats.",
+        "Admin can update the max upload size via an inline input; new value is persisted to the backend."
+      ]
+    },
+    {
+      "id": "REQ-7",
+      "text": "Implement the Platform Settings section of the Admin Dashboard. Provide an editable form with fields for: site name, logo URL, homepage announcement banner text (with an enable/disable toggle), and a maintenance mode toggle switch. Saving the form calls the backend setPlatformSettings endpoint. When maintenance mode is enabled, non-admin users visiting the frontend should see a maintenance page instead of the normal app.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-3"
+        ],
+        "quotes": [
+          "Change website name and logo",
+          "Control homepage content and featured sections",
+          "Manage announcements and banners",
+          "Enable or disable maintenance mode"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Platform settings form loads current values from the backend on mount.",
+        "Saving the form persists all fields to the backend and shows a success toast.",
+        "When maintenance mode is on, visiting any non-admin route shows a maintenance-mode interstitial page with the platform name and an optional message.",
+        "Admin visiting `/admin` bypasses the maintenance-mode interstitial.",
+        "Announcement banner text appears on the homepage when enabled."
+      ]
+    },
+    {
+      "id": "REQ-8",
+      "text": "Implement the Security section of the Admin Dashboard. Display a list of currently banned and suspended users with their status and the ability to unban/unsuspend from this view. Add a searchable account-blocking form where the admin can enter a principal ID to block (ban) that account. Display a platform activity log showing recent events: new user registrations, book uploads, and books removed — with timestamps and actor principal.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-3"
+        ],
+        "quotes": [
+          "Monitor platform activity",
+          "Force logout users if needed",
+          "Block malicious or abusive accounts",
+          "Enforce secure access"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Banned/suspended users list is populated from the backend and allows quick status reversal.",
+        "Block-by-principal form validates the input and calls banUser for the entered principal.",
+        "Activity log shows at least the 20 most recent events with event type, principal, and timestamp.",
+        "All security actions show success/failure toast notifications."
+      ]
+    }
+  ],
+  "constraints": [
+    "Admin principal ID `zhpm4-xby3w-hy7nv-ziwxz-heeqw-f2qf4-p2o5a-qradb` must be hardcoded in the backend as the sole authorized admin caller.",
+    "All admin backend endpoints must trap or return an error variant if called by any principal other than the admin principal.",
+    "Do not modify files in frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui.",
+    "Keep all backend logic in the single main actor at backend/main.mo.",
+    "Reuse the existing AdminGuard component for route protection — do not replace it."
+  ],
+  "nonGoals": [
+    "Multi-admin or role-based admin tiers — only one hardcoded admin principal.",
+    "Real-time activity monitoring via WebSockets or polling — static log fetch is sufficient.",
+    "Email or SMS notifications for admin actions.",
+    "Canister upgrade or IC management API calls from within the app.",
+    "Third-party analytics integrations."
+  ],
+  "imageRequirements": {
+    "required": [],
+    "edits": []
+  }
+}

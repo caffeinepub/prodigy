@@ -1,0 +1,183 @@
+{
+  "kind": "implementation_plan",
+  "version": "1.0",
+  "title": "Admin Dashboard with Full Platform Control for Prodigy Digital Library",
+  "requirements": [
+    {
+      "id": "REQ-2",
+      "summary": "Build a complete Admin Dashboard page at /admin with sidebar navigation and mobile-responsive layout",
+      "acceptanceCriteria": [
+        "Navigating to `/admin` while not logged in or not the admin principal shows the access-denied UI from AdminGuard.",
+        "Navigating to `/admin` as the admin principal renders the Admin Dashboard with all sections accessible.",
+        "The dashboard is usable on mobile viewports (320px and up) with a collapsible sidebar or bottom tab navigation.",
+        "Each section loads its data independently with loading skeletons and error states."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/AdminDashboard.tsx",
+          "operation": "modify",
+          "description": "Replace the existing admin dashboard implementation with a complete multi-section dashboard featuring sidebar navigation with tabs for: Overview/Analytics, User Management, Book Management, Storage Control, Platform Settings, and Security. Implement mobile-responsive collapsible sidebar using shadcn/ui Sheet component. Each section should be a separate component that lazy-loads its data. Ensure AdminGuard wrapper remains in place for route protection."
+        },
+        {
+          "path": "frontend/src/components/admin/AdminSidebar.tsx",
+          "operation": "create",
+          "description": "Create a sidebar navigation component with icons and labels for each admin section: Overview (BarChart icon), Users (Users icon), Books (BookOpen icon), Storage (Database icon), Settings (Settings icon), Security (Shield icon). Use shadcn/ui Sheet for mobile drawer. Highlight the active section. Support both desktop vertical sidebar and mobile bottom/drawer navigation."
+        },
+        {
+          "path": "frontend/src/App.tsx",
+          "operation": "modify",
+          "description": "Ensure the /admin route is registered and wrapped with AdminGuard. No new routes are needed beyond the existing admin route."
+        }
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "summary": "Implement the Analytics/Overview section displaying platform stats, most-viewed books, most-bookmarked books, and most-active users",
+      "acceptanceCriteria": [
+        "Stat cards show correct counts fetched from the backend getAnalytics/adminStats endpoints.",
+        "Most-viewed and most-bookmarked book lists render book title and count.",
+        "Most-active users list renders display name and upload count.",
+        "All data refreshes when the admin revisits the section."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/admin/OverviewSection.tsx",
+          "operation": "create",
+          "description": "Create the Overview/Analytics section component that fetches and displays: stat cards for total users, total books, total uploads, approved books, pending books (using getAdminStats); lists for most-viewed books (using getMostViewedBooks) and most-bookmarked books (using getMostPopularBooks). Display most-active users by upload count (derive from getUserProfile calls or add a new backend capability if needed). Use loading skeletons and error states. Reuse the existing StatsCards component for stat display."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add query hooks for fetching analytics data: useGetMostViewedBooks (if not present), useGetMostPopularBooks (if not present), and a custom hook to aggregate user upload counts for the most-active users list. Ensure all hooks use the actor from useActor and are enabled only when the actor is available."
+        }
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "summary": "Implement the User Management section with paginated user table and actions to delete, ban/unban, suspend/unsuspend users",
+      "acceptanceCriteria": [
+        "User table populates with all registered users from the backend.",
+        "Ban/unban button label toggles based on current user status.",
+        "Delete action shows a confirmation dialog; confirming calls deleteUser and removes the row.",
+        "Toast notifications confirm success or display errors for each action."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/admin/UserManagementSection.tsx",
+          "operation": "create",
+          "description": "Create the User Management section component that displays a table of all registered users with columns: display name, principal ID (truncated), role, status (active/banned/suspended), books uploaded count, join date. Add action buttons per row: Delete (with confirmation dialog using shadcn/ui AlertDialog), Ban/Unban (toggle based on current status), Suspend/Unsuspend. Use shadcn/ui Table component. Implement pagination or infinite scroll for large user lists. Show toast notifications on success/error for all actions."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add query hooks for user management: useGetAllUsers (fetches all registered users with metadata), and mutation hooks: useDeleteUser, useBanUser, useUnbanUser, useSuspendUser, useUnsuspendUser. Each mutation should invalidate the users list query on success and show appropriate toast notifications."
+        }
+      ]
+    },
+    {
+      "id": "REQ-5",
+      "summary": "Implement the Book Management section with searchable/filterable book list and actions to edit, delete, approve, reject, feature/unfeature books",
+      "acceptanceCriteria": [
+        "All books regardless of status appear in the admin book list.",
+        "Approve/reject buttons update the book's approval status and re-fetch the list.",
+        "Feature/unfeature toggle updates the book's featured flag.",
+        "Edit form is pre-populated with the book's current data and saves changes to the backend.",
+        "Delete action requires confirmation before removing the book."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/admin/BookManagementSection.tsx",
+          "operation": "create",
+          "description": "Create the Book Management section component that displays all books (approved, pending, rejected) in a searchable and filterable table/grid. Include columns: thumbnail, title, author, genre, status badge, featured flag (star icon), view count. Add per-book actions: Edit (opens inline edit form or dialog), Delete (with confirmation), Approve, Reject, Feature/Unfeature toggle. Implement search by title/author and filter by genre/status dropdowns. Use shadcn/ui Dialog for edit forms and AlertDialog for delete confirmation. Show toast notifications for all actions."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add query hooks for book management: useGetAllBooks (fetches books of all statuses for admin view), and mutation hooks: useDeleteBook, useFeatureBook, useUnfeatureBook. Reuse existing useApproveBook and useRejectBook mutations if present, or add them. Ensure editBook mutation hook exists (useEditBook). All mutations should invalidate relevant book queries on success."
+        }
+      ]
+    },
+    {
+      "id": "REQ-6",
+      "summary": "Implement the Storage Control section displaying storage usage stats, PDF list, and controls to delete PDFs and update max upload size",
+      "acceptanceCriteria": [
+        "Storage stats card shows total bytes used and current max upload size.",
+        "PDF list shows all entries with metadata from the backend.",
+        "Deleting a PDF entry calls the backend, removes it from the list, and updates the storage stats.",
+        "Admin can update the max upload size via an inline input; new value is persisted to the backend."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/admin/StorageControlSection.tsx",
+          "operation": "create",
+          "description": "Create the Storage Control section component that displays: aggregate storage usage stat card (total bytes used, formatted as MB/GB), current max upload size setting (editable inline input with save button), and a table of all uploaded PDFs with columns: file name, associated book title, uploader display name, file size, upload date. Add a Delete button per PDF entry with confirmation dialog. Format file sizes in human-readable units. Use shadcn/ui Input and Button for the max upload size control. Show toast notifications on save/delete actions."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add query hooks for storage management: useGetStorageStats (fetches total bytes used and max upload size), useGetAllPDFs (fetches all PDF entries with metadata), and mutation hooks: useDeletePDF, useUpdateMaxUploadSize. Ensure mutations invalidate storage stats and PDF list queries on success."
+        }
+      ]
+    },
+    {
+      "id": "REQ-7",
+      "summary": "Implement the Platform Settings section with editable form for site name, logo URL, announcement banner, and maintenance mode toggle",
+      "acceptanceCriteria": [
+        "Platform settings form loads current values from the backend on mount.",
+        "Saving the form persists all fields to the backend and shows a success toast.",
+        "When maintenance mode is on, visiting any non-admin route shows a maintenance-mode interstitial page with the platform name and an optional message.",
+        "Admin visiting `/admin` bypasses the maintenance-mode interstitial.",
+        "Announcement banner text appears on the homepage when enabled."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/admin/PlatformSettingsSection.tsx",
+          "operation": "create",
+          "description": "Create the Platform Settings section component with a form containing: site name input, logo URL input, announcement banner text textarea with enable/disable toggle switch, and maintenance mode toggle switch. Use shadcn/ui Form, Input, Textarea, and Switch components. Load current settings on mount using useGetPlatformSettings hook. Save button calls useSetPlatformSettings mutation. Show toast notifications on success/error. Display a preview of the logo URL if provided."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add query hooks for platform settings: useGetPlatformSettings (fetches site name, logo URL, announcement text/enabled flag, maintenance mode flag), and mutation hook: useSetPlatformSettings (saves all platform settings). Invalidate the platform settings query on successful save."
+        },
+        {
+          "path": "frontend/src/components/MaintenanceMode.tsx",
+          "operation": "create",
+          "description": "Create a MaintenanceMode component that displays a full-page interstitial with the platform logo, site name, and a maintenance message (e.g., 'We are currently performing scheduled maintenance. Please check back soon.'). Style it with the existing Prodigy branding (gold and navy theme). This component will be conditionally rendered in the Layout when maintenance mode is active."
+        },
+        {
+          "path": "frontend/src/components/Layout.tsx",
+          "operation": "modify",
+          "description": "Fetch platform settings using useGetPlatformSettings. If maintenance mode is enabled and the current route is not /admin (check using router location), render the MaintenanceMode component instead of the normal Outlet. Admin users visiting /admin bypass the maintenance screen. Ensure the maintenance check does not block the loading screen or authentication flows."
+        },
+        {
+          "path": "frontend/src/pages/Home.tsx",
+          "operation": "modify",
+          "description": "Fetch platform settings using useGetPlatformSettings. If announcement banner is enabled and has text, render the announcement banner at the top of the homepage (above or within the HeroSection). Use a dismissible banner component from shadcn/ui (Alert or custom banner) styled with the Prodigy theme. Store dismissal state in sessionStorage to avoid showing it again in the same session."
+        }
+      ]
+    },
+    {
+      "id": "REQ-8",
+      "summary": "Implement the Security section with banned/suspended users list, account-blocking form, and platform activity log",
+      "acceptanceCriteria": [
+        "Banned/suspended users list is populated from the backend and allows quick status reversal.",
+        "Block-by-principal form validates the input and calls banUser for the entered principal.",
+        "Activity log shows at least the 20 most recent events with event type, principal, and timestamp.",
+        "All security actions show success/failure toast notifications."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/admin/SecuritySection.tsx",
+          "operation": "create",
+          "description": "Create the Security section component with three subsections: 1) Banned/Suspended Users List - table showing users with banned or suspended status, with Unban/Unsuspend action buttons; 2) Block Account Form - input for principal ID with a Block button that validates the input (Principal format) and calls useBanUser mutation; 3) Activity Log - table showing recent platform events (new user registrations, book uploads, book deletions) with columns: event type, actor principal (truncated), timestamp. Use shadcn/ui Table, Input, Button components. Fetch activity log using useGetActivityLog hook. Show toast notifications for all actions."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add query hooks for security: useGetBannedUsers, useGetSuspendedUsers, useGetActivityLog (fetches recent platform events). Ensure useBanUser and useUnsuspendUser/useUnbanUser mutations exist. All mutations should invalidate the relevant user lists and activity log on success."
+        }
+      ]
+    }
+  ]
+}
